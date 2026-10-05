@@ -45,12 +45,12 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
         Activity
       </button>
-      <button type="button" role="tab" data-page="settings" aria-selected="false">
+      <button type="button" role="tab" data-page="settings" aria-selected="false" data-roles="admin">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
         Settings
       </button>
     </nav>
-    <div class="whoami" id="whoami"></div>
+    <button type="button" class="whoami" id="whoami" title="Your account: profile, password and sign-in security"></button>
     <form class="side-foot" method="post" action="/logout">
       <button type="button" class="theme-btn" id="btnTheme" aria-label="Change theme"></button>
       <button type="submit" class="link-btn">Log out</button>
@@ -304,15 +304,15 @@
       </div>
     </section>
 
-    <!-- ================= Settings ================= -->
-    <section class="page" id="page-settings" hidden>
+    <!-- ================= Account (opened from the profile button at the bottom left) ================= -->
+    <section class="page" id="page-account" hidden>
       <header class="page-head">
         <div>
-          <h1>Settings</h1>
-          <p>Defaults for new journeys, and backups.</p>
+          <h1>Account</h1>
+          <p>Your profile, password, two-factor sign-in and passkeys.</p>
         </div>
       </header>
-      <div id="settingsMsg" hidden></div>
+      <div id="accountMsg" hidden></div>
       <div class="export-grid mb16">
         <form class="panel" id="profileForm" novalidate><div class="panel-body">
           <h2 class="section-title">My account</h2>
@@ -398,6 +398,17 @@
         </div>
         <ul class="key-list" id="pkList"></ul>
       </div></div>
+    </section>
+
+    <!-- ================= Settings ================= -->
+    <section class="page" id="page-settings" hidden>
+      <header class="page-head">
+        <div>
+          <h1>Settings</h1>
+          <p>Platform settings for everyone: rates, base places, Google keys and backups.</p>
+        </div>
+      </header>
+      <div id="settingsMsg" hidden></div>
       <div class="export-grid" data-roles="admin">
         <form class="panel" id="settingsForm" novalidate><div class="panel-body">
           <h2 class="section-title">Company settings</h2>
@@ -745,7 +756,7 @@
     </div>
     <div class="modal-body">
       <p>Turn on <b>two-factor sign-in</b> so that a password on its own isn't enough to get into Waymark. After your password, you'll enter a 6-digit code from an authenticator app on your phone (Microsoft Authenticator, Google Authenticator, 1Password and so on).</p>
-      <p class="hint">It takes about a minute. You can also do it later in Settings.</p>
+      <p class="hint">It takes about a minute. You can also do it later from your Account (click your name at the bottom left).</p>
     </div>
     <div class="modal-foot">
       <span class="spacer"></span>

@@ -475,8 +475,19 @@ table.grid { width: 100%; border-collapse: separate; border-spacing: 0; font-siz
 }
 
 /* ---------- Users ---------- */
-.whoami { padding: 12px 8px 10px; margin-top: auto; font-size: 13px; color: var(--sidebar-text); border-top: 1px solid rgba(255, 255, 255, .08); }
-.whoami b { display: block; color: #fff; font-weight: 600; }
+/* Profile button (bottom left): opens the Account page. */
+.whoami {
+  display: flex; align-items: center; gap: 10px; width: 100%; margin-top: auto; padding: 12px 8px 10px;
+  background: none; border: 0; border-top: 1px solid rgba(255, 255, 255, .08); border-radius: 0; font: inherit; font-size: 13px;
+  color: var(--sidebar-text); text-align: left; cursor: pointer;
+}
+.whoami:hover, .whoami.active { background: rgba(255, 255, 255, .06); }
+.whoami.active .avatar { box-shadow: 0 0 0 2px #fff; }
+.whoami:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.whoami .avatar { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--brand-grad); color: #fff; font-weight: 700; font-size: 12px; letter-spacing: .02em; }
+.who-text { min-width: 0; }
+.whoami b { display: block; color: #fff; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .whoami small { font-size: 12px; }
 .whoami + .side-foot { margin-top: 0; border-top: 0; padding-top: 4px; }
 .grid.log.hide-user .c-user { display: none; }
@@ -486,7 +497,13 @@ table.grid { width: 100%; border-collapse: separate; border-spacing: 0; font-siz
 .badge.role-user { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
 .badge.inactive { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
 input:disabled { opacity: .6; cursor: not-allowed; }
-@media (max-width: 900px) { .whoami { display: none; } }
+@media (max-width: 900px) {
+  /* Phone/tablet: just the avatar, in the top bar next to theme + log out. */
+  .whoami { width: auto; margin: 0 0 0 auto; padding: 0; border: 0; background: none; }
+  .whoami:hover, .whoami.active { background: none; }
+  .who-text { display: none; }
+  .whoami + .side-foot { margin-left: 0; }
+}
 @media (max-width: 700px) {
   .log .c-user { grid-column: 1 / -1; font-size: 12px; color: var(--muted); order: -1; }
   .grid.log tbody tr { grid-template-areas: "user user" "date claim" "start start" "dest dest" "biz miles" "type act"; }

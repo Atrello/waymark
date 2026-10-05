@@ -82,7 +82,7 @@ test('customer rule', () => {
   assert.equal(util.legCustomer(depot, { place: 'Nowhere', customerId: null }, null, hs), null);
 });
 
-test('database: places, cached trip, duplicate block, CSV, rename', async () => {
+test('database: places, cached trip, repeat trips, CSV, rename', async () => {
   const custId = (name) => {
     if (!name) return '';
     const found = customers.list().find((c) => c.name === name);
@@ -156,11 +156,29 @@ test('database: places, cached trip, duplicate block, CSV, rename', async () => 
   assert.equal(pv.totalClaim, 13.2);
   assert.ok(pv.legs.every((l) => l.source === 'cache' && l.business === 'Acme Ltd'));
 
-  const saved = await mileage.saveTrip(trip, ADMIN);
+  const saved = await mileage.saveTrip({ ...trip, submissionId: 'preview-one-0001' }, ADMIN);
   assert.match(saved.message, /Saved 2 legs/);
-  await assert.rejects(mileage.saveTrip(trip, ADMIN), /Nothing was saved/);
   assert.equal(db.allLog().length, 2);
-  await mileage.saveTrip({ ...trip, ticket: 'T1' }, ADMIN); // different ticket -> allowed
+
+  // The same trip again on the same day is allowed (a real second trip): the preview mentions it, saving adds it.
+  const again = await mileage.previewTrip(trip, ADMIN);
+  assert.deepEqual(again.duplicates, ['Home → Acme Depot', 'Acme Depot → Home']);
+  const second = await mileage.saveTrip({ ...trip, submissionId: 'preview-two-0002' }, ADMIN);
+  assert.equal(db.allLog().length, 4);
+  const ids = db.allLog().map((r) => r.entryId);
+  assert.equal(new Set(ids).size, 4, 'every leg has its own hidden entry ID');
+  assert.ok(second.entryIds.every((id) => /^E\d{8}T\d{6}-[0-9a-f]{8}-\d+$/.test(id)));
+
+  // But pressing Save twice for one preview (same submission ID) only saves once, even if both arrive together.
+  const twice = await Promise.allSettled([
+    mileage.saveTrip({ ...trip, date: today, reason: 'Double tap', submissionId: 'preview-three-03' }, ADMIN),
+    mileage.saveTrip({ ...trip, date: today, reason: 'Double tap', submissionId: 'preview-three-03' }, ADMIN),
+  ]);
+  assert.deepEqual(twice.map((t) => t.status).sort(), ['fulfilled', 'rejected']);
+  assert.match(twice.find((t) => t.status === 'rejected').reason.message, /already been saved/);
+  assert.equal(db.allLog().filter((r) => r.reason === 'Double tap').length, 2, 'one trip (2 legs), not two');
+  await assert.rejects(mileage.saveTrip({ ...trip, submissionId: 'bad id!' }, ADMIN), /Invalid submission/);
+  for (const r of db.allLog().filter((x) => x.reason === 'Double tap')) mileage.deleteLogEntry(r.entryId, ADMIN);
   assert.equal(db.allLog().length, 4);
 
   // Uncached leg to a place without coordinates is refused, naming the place.

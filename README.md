@@ -46,7 +46,7 @@ They must be separate keys: the browser key is visible to signed-in users, and G
 ## Rules worth knowing
 
 - **Claim** = miles × rate, rounded to 2 dp per leg. The rate is the user's own, or the company default.
-- **Duplicates:** a leg with the same date, start, destination and ticket ID as one the same person has already logged is refused.
+- **Repeat trips** are allowed: every leg gets its own hidden entry ID, so the same trip can be logged any number of times. The preview mentions when you've already logged it that day. Pressing Save twice for one preview only saves once.
 - **Test entries** are excluded from exports and can be deleted freely.
 - **Renaming a place** keeps its cached distances; **moving** it clears them so they're looked up again. Past entries keep the name they were logged with.
 - **Deleting a user** is only allowed if they have no journeys; otherwise deactivate them.

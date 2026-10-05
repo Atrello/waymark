@@ -13,7 +13,7 @@
     log: [], logLoaded: false,
     logSort: { key: 'date', dir: -1 }, logLimit: 200,
     placeSort: { key: 'place', dir: 1 },
-    stops: ['', ''], previewKey: null, previewOk: false,
+    stops: ['', ''], previewKey: null, previewOk: false, submissionId: null,
   };
 
   function $(id) { return document.getElementById(id); }
@@ -22,6 +22,12 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
+  }
+  /** Random hex ID. (crypto.randomUUID needs HTTPS; getRandomValues also works over plain http on a LAN.) */
+  function randomId() {
+    var a = new Uint8Array(16);
+    crypto.getRandomValues(a);
+    return Array.prototype.map.call(a, function (b) { return (b < 16 ? '0' : '') + b.toString(16); }).join('');
   }
   function mi(n) { return Number(n).toFixed(1); }
   function money(n) { return '£' + Number(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -336,8 +342,9 @@
   /* Navigation + modals                                               */
   /* ================================================================ */
 
-  var PAGES = ['mileage', 'customers', 'places', 'export', 'users', 'activity', 'settings'];
+  var PAGES = ['mileage', 'customers', 'places', 'export', 'users', 'activity', 'settings', 'account'];
   function pageAllowed(name) {
+    if (name === 'account') return true; // everyone's own account page, opened from the profile button
     var b = document.querySelector('.nav button[data-page="' + name + '"]');
     return PAGES.indexOf(name) >= 0 && b && !b.hidden;
   }
@@ -347,6 +354,8 @@
       b.setAttribute('aria-selected', b.dataset.page === name ? 'true' : 'false');
     });
     PAGES.forEach(function (p) { $('page-' + p).hidden = p !== name; });
+    $('whoami').classList.toggle('active', name === 'account');
+    if (name === 'account') $('whoami').setAttribute('aria-current', 'page'); else $('whoami').removeAttribute('aria-current');
     if (name === 'places') renderPlaces();
     if (name === 'customers') renderCustomers();
     if (name === 'export') loadExportSummary();
@@ -711,7 +720,7 @@
   });
   $('roundHome').addEventListener('click', function () {
     var home = homePlace();
-    if (!home) { toast('Set your home place first (Settings → My account).'); return; }
+    if (!home) { toast('Set your home place first (click your name at the bottom left → Account).'); return; }
     var mid = S.stops.map(function (s) { return s.trim(); }).filter(Boolean);
     if (mid.length && norm(mid[0]) === norm(home)) mid.shift();
     if (mid.length && norm(mid[mid.length - 1]) === norm(home)) mid.pop();
@@ -759,8 +768,9 @@
   function renderPreview(r) {
     var html = '<h3>Preview · ' + esc(ukLong(r.date)) + '</h3>';
     if (r.duplicates.length) {
-      html += '<div class="msg bad">Already logged on ' + esc(r.dateUk) + ' with this Ticket ID:\n' + esc(r.duplicates.join('\n')) +
-        '\nSaving is blocked. Change the date or ticket, or delete the old entry.</div>';
+      html += '<div class="msg warn">You\'ve already logged ' + (r.duplicates.length === 1 ? 'this leg' : 'these legs') + ' on ' +
+        esc(r.dateUk) + ' with the same ticket ID:\n' + esc(r.duplicates.join('\n')) +
+        '\nIf you made the trip again, save as normal and it will be added as a separate entry.</div>';
     }
     r.warnings.forEach(function (w) { html += '<div class="msg warn">' + esc(w) + '</div>'; });
     if (r.skipped.length) html += '<div class="msg info">Skipped (same place): ' + esc(r.skipped.join(', ')) + '</div>';
@@ -788,7 +798,8 @@
     tripChanged();
     busy(this, api('POST', '/api/trips/preview', p)).then(function (r) {
       S.previewKey = JSON.stringify(p);
-      S.previewOk = !r.duplicates.length;
+      S.previewOk = true; // repeats of an earlier trip are allowed; the preview just points them out
+      S.submissionId = randomId(); // one save per preview: a double-click on Save can't add the trip twice
       renderPreview(r);
       tripChanged();
       $('preview').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -802,7 +813,9 @@
     var p = tripPayload();
     if (JSON.stringify(p) !== S.previewKey) { showMsg('tripMsg', 'Preview again before saving.', 'warn'); return; }
     showMsg('tripMsg', '');
-    busy(this, api('POST', '/api/trips', p)).then(function (r) {
+    var body = JSON.parse(JSON.stringify(p));
+    body.submissionId = S.submissionId;
+    busy(this, api('POST', '/api/trips', body)).then(function (r) {
       closeModal('tripModal');
       toast(r.message);
       // Make sure the new rows are visible in the table.
@@ -1182,7 +1195,11 @@
     $('meHome').value = S.me.homePlaceId ? String(S.me.homePlaceId) : '';
     $('meRate').value = S.me.ratePenceOwn != null ? S.me.ratePenceOwn : '';
     $('meLine').textContent = 'Signed in as ' + S.me.username + ' · ' + ROLE_LABELS[S.me.role];
-    $('whoami').innerHTML = '<b>' + esc(S.me.name) + '</b><small>' + esc(ROLE_LABELS[S.me.role]) + '</small>';
+    var initials = String(S.me.name || S.me.username || '?').trim().split(/\s+/).slice(0, 2)
+      .map(function (w) { return w.charAt(0); }).join('').toUpperCase();
+    $('whoami').innerHTML = '<span class="avatar" aria-hidden="true">' + esc(initials) + '</span>' +
+      '<span class="who-text"><b>' + esc(S.me.name) + '</b><small>' + esc(ROLE_LABELS[S.me.role]) + ' · Account</small></span>';
+    $('whoami').setAttribute('aria-label', 'Your account (' + S.me.name + ')');
     renderSecurity();
   }
 
@@ -1192,21 +1209,21 @@
       name: $('meName').value.trim(), homePlaceId: $('meHome').value, ratePence: $('meRate').value,
     })).then(function (r) {
       setMe(r.me);
-      showMsg('settingsMsg', r.message, 'ok');
-    }).catch(function (err) { showMsg('settingsMsg', err.message, 'bad'); });
+      showMsg('accountMsg', r.message, 'ok');
+    }).catch(function (err) { showMsg('accountMsg', err.message, 'bad'); });
   });
 
   $('passwordForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    if ($('pwNew').value !== $('pwNew2').value) { showMsg('settingsMsg', 'The new passwords do not match.', 'bad'); return; }
+    if ($('pwNew').value !== $('pwNew2').value) { showMsg('accountMsg', 'The new passwords do not match.', 'bad'); return; }
     busy(this.querySelector('button[type="submit"]'), api('PUT', '/api/me/password', {
       current: $('pwCurrent').value, next: $('pwNew').value,
     })).then(function (r) {
       $('pwCurrent').value = $('pwNew').value = $('pwNew2').value = '';
       S.me.mustChangePassword = false;
       $('pwBanner').hidden = true;
-      showMsg('settingsMsg', r.message, 'ok');
-    }).catch(function (err) { showMsg('settingsMsg', err.message, 'bad'); });
+      showMsg('accountMsg', r.message, 'ok');
+    }).catch(function (err) { showMsg('accountMsg', err.message, 'bad'); });
   });
 
   function setMe(me) {
@@ -1390,19 +1407,19 @@
         $('tfStepScan').hidden = false;
         $('tfStepCodes').hidden = true;
         $('tfCode').focus();
-      }).catch(function (e) { showMsg('settingsMsg', e.message, 'bad'); });
+      }).catch(function (e) { showMsg('accountMsg', e.message, 'bad'); });
     });
   });
 
   $('btnTfVerify').addEventListener('click', function () {
     var code = $('tfCode').value.replace(/\s+/g, '');
-    if (!/^\d{6}$/.test(code)) { showMsg('settingsMsg', 'Enter the 6-digit code from your authenticator app.', 'warn'); return; }
+    if (!/^\d{6}$/.test(code)) { showMsg('accountMsg', 'Enter the 6-digit code from your authenticator app.', 'warn'); return; }
     busy(this, waymarkAuth.call('POST', '/two-factor/verify-totp', { code: code })).then(function () {
       S.me.twoFactorEnabled = true;
-      showMsg('settingsMsg', 'Two-factor sign-in is on. You will be asked for a code after your password.', 'ok');
+      showMsg('accountMsg', 'Two-factor sign-in is on. You will be asked for a code after your password.', 'ok');
       showCodes(pendingCodes);
       renderSecurity();
-    }).catch(function (e) { showMsg('settingsMsg', e.message, 'bad'); });
+    }).catch(function (e) { showMsg('accountMsg', e.message, 'bad'); });
   });
   $('tfCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('btnTfVerify').click(); } });
 
@@ -1411,16 +1428,16 @@
   $('btnTfPromptSkip').addEventListener('click', function () {
     closeModal('tfPromptModal');
     api('PUT', '/api/me/two-factor-prompt').then(function () {
-      toast('Skipped. You can turn on two-factor sign-in any time in Settings.');
+      toast('Skipped. You can turn on two-factor sign-in any time from your Account (click your name).');
     }).catch(function () { /* it'll just be suggested again next time */ });
   });
   $('btnTfPromptGo').addEventListener('click', function () {
     closeModal('tfPromptModal');
-    showPage('settings');
+    showPage('account');
     $('btnTfOn').click();
   });
 
-  $('btnTfCancel').addEventListener('click', function () { $('tfSetup').hidden = true; showMsg('settingsMsg', ''); });
+  $('btnTfCancel').addEventListener('click', function () { $('tfSetup').hidden = true; showMsg('accountMsg', ''); });
   $('btnTfDone').addEventListener('click', function () { $('tfSetup').hidden = true; pendingCodes = []; });
   $('btnTfCopy').addEventListener('click', function () {
     var text = pendingCodes.join('\n');
@@ -1437,8 +1454,8 @@
         S.me.twoFactorEnabled = false;
         $('tfSetup').hidden = true;
         renderSecurity();
-        showMsg('settingsMsg', 'Two-factor sign-in is off.', 'ok');
-      }).catch(function (e) { showMsg('settingsMsg', e.message, 'bad'); });
+        showMsg('accountMsg', 'Two-factor sign-in is off.', 'ok');
+      }).catch(function (e) { showMsg('accountMsg', e.message, 'bad'); });
     });
   });
 
@@ -1448,7 +1465,7 @@
       if (!pw) return;
       busy(btn, waymarkAuth.call('POST', '/two-factor/generate-backup-codes', { password: pw })).then(function (r) {
         showCodes(r.backupCodes);
-      }).catch(function (e) { showMsg('settingsMsg', e.message, 'bad'); });
+      }).catch(function (e) { showMsg('accountMsg', e.message, 'bad'); });
     });
   });
 
@@ -1481,7 +1498,7 @@
     busy(btn, waymarkAuth.registerPasskey(deviceName())).then(function () {
       toast('Passkey added. You can now sign in with it.');
       loadPasskeys();
-    }).catch(function (e) { showMsg('settingsMsg', e.message, 'bad'); });
+    }).catch(function (e) { showMsg('accountMsg', e.message, 'bad'); });
   });
 
   $('pkList').addEventListener('click', function (e) {
@@ -1492,11 +1509,12 @@
       waymarkAuth.call('POST', '/passkey/delete-passkey', { id: b.dataset.pk }).then(function () {
         toast('Passkey removed.');
         loadPasskeys();
-      }).catch(function (err) { showMsg('settingsMsg', err.message, 'bad'); });
+      }).catch(function (err) { showMsg('accountMsg', err.message, 'bad'); });
     });
   });
 
-  $('pwBannerGo').addEventListener('click', function () { showPage('settings'); $('pwCurrent').focus(); });
+  $('whoami').addEventListener('click', function () { showPage('account'); });
+  $('pwBannerGo').addEventListener('click', function () { showPage('account'); $('pwCurrent').focus(); });
 
   $('btnBackup').addEventListener('click', function () {
     busy(this, api('POST', '/api/backup')).then(function (r) { showMsg('settingsMsg', r.message, 'ok'); })
