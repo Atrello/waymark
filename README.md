@@ -3,8 +3,8 @@
 Self-hosted business mileage log. Log journeys, get driving distances from Google, and export monthly claim CSVs.
 
 - **Journeys:** multi-stop route builder; distances from the Google Routes API, cached so each pair of places is looked up only once.
-- **Places and customers:** each leg is charged to the destination's customer (or the origin's, when it ends at a home place).
-- **Export:** claim CSV per month or date range, with totals and a summary by customer and user.
+- **Places and customers:** each leg is assigned to the destination's customer (or the origin's, when it ends at a home place).
+- **Export:** export a CSV with totals and a summary by customer and user.
 - **Maps (optional):** pick a place's location on a map; click a journey to see its route.
 - **Users:** Administrator, User and Accounts (read-only) roles; optional two-factor sign-in and passkeys.
 - **Activity log:** permanent, append-only record of every change, export and sign-in.
@@ -13,7 +13,7 @@ Node.js + Express + SQLite (one file, `data/mileage.db`). No build step.
 
 ## Setup
 
-Needs **Node.js 22.13+**. Don't run it from a OneDrive-synced folder, because syncing a live database can corrupt it.
+Needs **Node.js 22.13+**
 
 ```bash
 npm install
@@ -58,20 +58,3 @@ They must be separate keys: the browser key is visible to signed-in users, and G
 - Back up any time with `npm run backup`, or from **Settings**.
 - Copy `backups/` somewhere off this machine.
 - To restore: stop the app, replace `data/mileage.db` with a backup, start it again.
-
-## Development
-
-```bash
-npm test
-```
-
-Tests run against a temporary database and make no Google calls.
-
-```
-server.js     web server, sign-in, API
-lib/          db, auth, users, mileage (routes + Google), customers, exporter, audit, googleKey, util
-public/       browser app (plain JS) and the two map pages
-test/         node:test suite
-```
-
-To update: back up, replace the code (never `data/` or `.env`), `npm install`, restart.

@@ -490,7 +490,7 @@ api.get('/backup/download', ADMIN, (req, res) => {
   const tmp = path.join(os.tmpdir(), `waymark-${process.pid}-${Date.now()}.db`);
   exporter.snapshotDb(tmp);
   note(req, 'backup.download', 'Downloaded a copy of the database');
-  res.download(tmp, `mileage-${todayIso()}.db`, () => fs.unlink(tmp, () => {}));
+  res.download(tmp, `waymark-${todayIso()}.db`, () => fs.unlink(tmp, () => {}));
 });
 
 /* ---- Activity log (admin + accounts; read-only) ---- */
