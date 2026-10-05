@@ -22,7 +22,7 @@ const customers = require('./lib/customers');
 const users = require('./lib/users');
 const audit = require('./lib/audit');
 const schedule = require('./lib/schedule');
-const { UserError, todayIso, ukDate, str } = require('./lib/util');
+const { UserError, todayIso, ukDate } = require('./lib/util');
 
 /* ---------------- Config ---------------- */
 
@@ -278,14 +278,14 @@ const sitesOf = (customerId) => db.listPlaces().filter((p) => p.customerId === N
 const money = (n) => `£${Number(n).toFixed(2)}`;
 const miles = (n) => `${Number(n).toFixed(1)} mi`;
 
-/** What the browser gets about the signed-in user: ratePence = effective rate, ratePenceOwn = their override. */
+/** What the browser gets about the signed-in user. ratePence: the company rate their journeys are claimed at. */
 function meView(u) {
-  return { ...u, ratePenceOwn: u.ratePence, ratePence: users.rateFor(u) };
+  return { ...u, ratePence: users.rateFor() };
 }
 
 function globalSettings() {
   const s = db.getSettings();
-  return { ratePence: s.ratePence, homePlaces: s.homePlaces };
+  return { ratePence: s.ratePence };
 }
 
 api.get('/init', (req, res) => {
@@ -307,8 +307,7 @@ api.get('/me', (req, res) => res.json({ me: meView(users.get(req.user.id)) }));
 api.put('/me', (req, res) => {
   const before = users.get(req.user.id);
   const r = users.updateProfile(req.user, req.body);
-  const diff = changes([['Name', before.name, r.me.name], ['Home place', before.homePlace, r.me.homePlace],
-    ['Own rate', ratePence(before.ratePence), ratePence(r.me.ratePence)]]);
+  const diff = changes([['Name', before.name, r.me.name], ['Email', before.email, r.me.email]]);
   if (diff) note(req, 'account.profile', `Updated own profile: ${diff}`);
   r.me = meView(r.me);
   res.json(r);
@@ -351,8 +350,7 @@ api.put('/users/:id', ADMIN, async (req, res) => {
   const extra = [req.body.password && 'password reset', req.body.resetTwoFactor && before.twoFactorEnabled && 'two-factor turned off']
     .filter(Boolean);
   const diff = [changes([['Name', before.name, after.name], ['Email', before.email, after.email],
-    ['Role', before.roleLabel, after.roleLabel], ['Status', before.active ? 'Active' : 'Inactive', after.active ? 'Active' : 'Inactive'],
-    ['Home place', before.homePlace, after.homePlace], ['Rate', ratePence(before.ratePence), ratePence(after.ratePence)]]),
+    ['Role', before.roleLabel, after.roleLabel], ['Status', before.active ? 'Active' : 'Inactive', after.active ? 'Active' : 'Inactive']]),
   ...extra].filter(Boolean).join('; ');
   if (diff) note(req, 'user.update', `Updated user ${before.username}: ${diff}`);
   res.json(r);
@@ -496,16 +494,11 @@ api.get('/export/csv', (req, res) => {
 api.put('/settings', ADMIN, (req, res) => {
   const b = req.body || {};
   const rate = Number(b.ratePence);
-  if (!(rate > 0 && rate <= 200)) throw new UserError('Default rate must be between 1 and 200 pence.');
-  const home = str(b.homePlaces, 500, 'Base places', true).split(',').map((x) => x.trim()).filter(Boolean).join(',');
+  if (!(rate > 0 && rate <= 200)) throw new UserError('The rate must be between 1 and 200 pence.');
   const before = globalSettings();
-  db.tx(() => {
-    db.setSetting('RatePence', String(rate));
-    db.setSetting('HomePlaces', home);
-  });
+  db.setSetting('RatePence', String(rate));
   const after = globalSettings();
-  const diff = changes([['Default rate', ratePence(before.ratePence), ratePence(after.ratePence)],
-    ['Base places', before.homePlaces.join(', '), after.homePlaces.join(', ')]]);
+  const diff = changes([['Rate', ratePence(before.ratePence), ratePence(after.ratePence)]]);
   if (diff) note(req, 'settings.update', `Changed settings: ${diff}`);
   res.json({ message: 'Settings saved.', settings: after });
 });

@@ -26,7 +26,6 @@
     untrack(() => {
       f = {
         name: u ? u.name : '', username: u ? u.username : '', email: u ? u.email || '' : '', role: u ? u.role : 'user',
-        homePlaceId: u && u.homePlaceId ? String(u.homePlaceId) : '', ratePence: u && u.ratePence != null ? u.ratePence : '',
         password: u ? '' : randomPassword(), active: u ? u.active : true, resetTwoFactor: false,
       };
       msg = null;
@@ -44,7 +43,7 @@
   async function save() {
     const id = editing.id;
     const body = {
-      name: f.name.trim(), role: f.role, homePlaceId: f.homePlaceId, ratePence: f.ratePence, password: f.password,
+      name: f.name.trim(), role: f.role, password: f.password,
       active: f.active, email: f.email.trim(), resetTwoFactor: f.resetTwoFactor,
     };
     if (!id) body.username = f.username.trim();
@@ -79,20 +78,19 @@
     <div class="table-wrap">
       <table class="grid users">
         <thead>
-          <tr><th>Name</th><th>Username</th><th>Role</th><th>Home place</th><th class="num">Journey legs</th><th>Security</th><th>Last sign-in</th><th>Status</th></tr>
+          <tr><th>Name</th><th>Username</th><th>Role</th><th class="num">Journey legs</th><th>Security</th><th>Last sign-in</th><th>Status</th></tr>
         </thead>
         <tbody>
           {#if loadError}
-            <tr><td class="empty" colspan="8">{loadError}</td></tr>
+            <tr><td class="empty" colspan="7">{loadError}</td></tr>
           {:else if !users}
-            <tr><td class="empty" colspan="8"><span class="spinner"></span></td></tr>
+            <tr><td class="empty" colspan="7"><span class="spinner"></span></td></tr>
           {:else}
             {#each users as u (u.id)}
               <tr class="clickable" onclick={() => openEditor(u)}>
                 <td class="c-uname"><b>{u.name}</b>{#if u.id === app.me.id} <span class="muted">(you)</span>{/if}</td>
                 <td class="c-ulogin">{u.username}</td>
                 <td class="c-urole"><span class="badge role-{u.role}">{u.roleLabel}</span></td>
-                <td class="c-uhome">{u.homePlace || '—'}</td>
                 <td class="c-ulegs num">{u.legs}</td>
                 <td class="c-usec">
                   {#if u.twoFactorEnabled}<span class="badge live">2FA</span> {/if}
@@ -141,21 +139,6 @@
           <option value="admin">Administrator: full access, including users</option>
         </select>
       </div>
-      {#if f.role !== 'accounts'}
-        <div class="grid-2">
-          <div class="field">
-            <label class="f" for="uHome">Home place</label>
-            <select id="uHome" bind:value={f.homePlaceId}>
-              <option value="">— None —</option>
-              {#each app.places as p (p.id)}<option value={String(p.id)}>{p.place}</option>{/each}
-            </select>
-          </div>
-          <div class="field">
-            <label class="f" for="uRate">Rate (pence/mile)</label>
-            <input id="uRate" type="number" inputmode="decimal" min="1" max="200" step="0.01" placeholder="Company default" bind:value={f.ratePence}>
-          </div>
-        </div>
-      {/if}
       <div class="field">
         <label class="f" for="uPassword">{editing.id ? 'Reset password (optional)' : 'Temporary password'}</label>
         <div class="input-row">

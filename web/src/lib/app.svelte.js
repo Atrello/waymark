@@ -11,7 +11,7 @@ export const app = $state({
   users: [],          // directory for user pickers (admin + accounts only)
   places: [],
   customers: [],
-  settings: { ratePence: 55, homePlaces: ['Home'] },
+  settings: { ratePence: 55 },
   today: '',
   google: { configured: true },
   mapsPicker: { configured: false },
@@ -34,17 +34,6 @@ export const canDelete = (r) => role() === 'admin' || (role() === 'user' && r.us
 
 /* ---- Places ---- */
 export const placeByName = (name) => app.places.find((p) => norm(p.place) === norm(name)) || null;
-
-export function isHome(name) {
-  if (app.me && app.me.homePlace && norm(app.me.homePlace) === norm(name)) return true;
-  return app.settings.homePlaces.some((h) => norm(h) === norm(name));
-}
-
-/** The signed-in user's own home place name (set on the Account page), or ''. */
-export function homePlace() {
-  const p = app.me && app.me.homePlace ? placeByName(app.me.homePlace) : null;
-  return p ? p.place : '';
-}
 
 /** After a place/customer change the server returns both lists. */
 export function setPlacesAndCustomers(r) {

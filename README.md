@@ -3,7 +3,7 @@
 Self-hosted business mileage log. Log journeys, get driving distances from Google, and export monthly claim CSVs.
 
 - **Journeys:** multi-stop route builder; distances from the Google Routes API, cached so each pair of places is looked up only once.
-- **Places and customers:** each leg is assigned to the destination's customer (or the origin's, when it ends at a home place).
+- **Places and customers:** each leg is assigned to the destination's customer (or, when the destination has none, such as Home, the customer of where it started).
 - **Export:** export a CSV with totals and a summary by customer and user.
 - **Maps (optional):** pick a place's location on a map; click a journey to see its route.
 - **Users:** Administrator, User and Accounts (read-only) roles; optional two-factor sign-in and passkeys.
@@ -48,7 +48,7 @@ They must be separate keys: the browser key is visible to signed-in users, and G
 
 ## Rules worth knowing
 
-- **Claim** = miles × rate, rounded to 2 dp per leg. The rate is the user's own, or the company default.
+- **Claim** = miles × rate, rounded to 2 dp per leg. The rate is the company rate, set only in **Settings**; journeys keep the rate they were saved at.
 - **Repeat trips** are allowed: every leg gets its own hidden entry ID, so the same trip can be logged any number of times. The preview mentions when you've already logged it that day. Pressing Save twice for one preview only saves once.
 - **Test entries** are excluded from exports and can be deleted freely.
 - **Renaming a place** keeps its cached distances; **moving** it clears them so they're looked up again. Past entries keep the name they were logged with.

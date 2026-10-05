@@ -1,7 +1,7 @@
 <script>
   import { untrack } from 'svelte';
   import { api } from '../lib/api.js';
-  import { app, isHome, setPlacesAndCustomers, loadLog } from '../lib/app.svelte.js';
+  import { app, setPlacesAndCustomers, loadLog } from '../lib/app.svelte.js';
   import { toast, confirmBox, busy } from '../lib/ui.svelte.js';
   import { norm, mi, money, uk, sortRows, nextSort } from '../lib/format.js';
   import Modal from '../components/Modal.svelte';
@@ -20,7 +20,7 @@
     const q = norm(search);
     return !q || norm(`${c.name} ${sitesOf(c.id).map((p) => p.place).join(' ')}`).includes(q);
   }), sort));
-  const unassigned = $derived(app.places.filter((p) => !p.customerId && !isHome(p.place)).length);
+  const unassigned = $derived(app.places.filter((p) => !p.customerId).length);
 
   /* ---- Add / edit dialog ---- */
   let editing = $state(null);   // the customer being edited, {} for a new one, null when closed

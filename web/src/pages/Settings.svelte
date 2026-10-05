@@ -11,14 +11,12 @@
 
   /* ---- Company settings ---- */
   let rate = $state(app.settings.ratePence);
-  let homePlaces = $state(app.settings.homePlaces.join(','));
   async function saveSettings(e) {
     e.preventDefault();
     try {
-      const r = await busy((b) => (working = b ? 'settings' : ''), () => api('PUT', '/api/settings', { ratePence: Number(rate), homePlaces }));
+      const r = await busy((b) => (working = b ? 'settings' : ''), () => api('PUT', '/api/settings', { ratePence: Number(rate) }));
       app.settings = r.settings;
       rate = r.settings.ratePence;
-      homePlaces = r.settings.homePlaces.join(',');
       ok(r.message);
     } catch (err) { bad(err); }
   }
@@ -102,7 +100,7 @@
   <header class="page-head">
     <div>
       <h1>Settings</h1>
-      <p>Platform settings for everyone: rates, base places, Google keys and backups.</p>
+      <p>Platform settings for everyone: the mileage rate, Google keys and backups.</p>
     </div>
   </header>
   <Msg {msg} />
@@ -110,13 +108,9 @@
     <form class="panel" novalidate onsubmit={saveSettings}><div class="panel-body">
       <h2 class="section-title">Company settings</h2>
       <div class="field">
-        <label class="f" for="sRate">Company default rate (pence per mile)</label>
+        <label class="f" for="sRate">Mileage rate (pence per mile)</label>
         <input id="sRate" type="number" inputmode="decimal" min="1" max="200" step="0.01" bind:value={rate}>
-      </div>
-      <div class="field">
-        <label class="f" for="sHome">Base places <span class="hint">(shared, comma separated, e.g. Home, Office)</span></label>
-        <input id="sHome" type="text" placeholder="Home,Office" bind:value={homePlaces}>
-        <p class="hint">A leg that ends at one of these (or at the user's own home) takes the customer of the place it started from.</p>
+        <p class="hint">Every journey is claimed at this rate. Journeys already saved keep the rate they were claimed at.</p>
       </div>
       <button type="submit" class="btn primary" disabled={working === 'settings'}>{@render spin('settings', 'Save settings')}</button>
     </div></form>

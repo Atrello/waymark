@@ -1,7 +1,7 @@
 <script>
   import { tick, untrack } from 'svelte';
   import { api } from '../lib/api.js';
-  import { app, placeByName, isHome, homePlace } from '../lib/app.svelte.js';
+  import { app, placeByName } from '../lib/app.svelte.js';
   import { toast, busy } from '../lib/ui.svelte.js';
   import { norm, mi, money, ukLong, randomId } from '../lib/format.js';
   import Modal from '../components/Modal.svelte';
@@ -16,7 +16,6 @@
   let reason = $state('Site visit');
   let ticket = $state('');
   let customerId = $state('');
-  let rate = $state('');
   let msg = $state(null);
   let preview = $state(null);       // the server's preview of the trip
   let previewKey = $state(null);    // JSON of the payload that was previewed
@@ -36,25 +35,24 @@
     reason = 'Site visit';
     ticket = '';
     customerId = '';
-    rate = app.me.ratePence;
-    stops = [homePlace(), ''];
+    stops = ['', ''];
     msg = null;
     preview = null;
     previewKey = null;
     suggestFor = -1;
-    tick().then(() => { if (inputs[1] && window.matchMedia('(min-width: 701px)').matches) inputs[1].focus(); });
+    tick().then(() => { if (inputs[0] && window.matchMedia('(min-width: 701px)').matches) inputs[0].focus(); });
   }
 
   const payload = $derived({
     date, stops: stops.map((s) => s.trim()), reason: reason.trim(), ticket: ticket.trim(), customerId,
-    ratePence: rate === '' || rate === null ? '' : Number(rate), dataType,
+    dataType, // no rate: journeys are always claimed at the company rate set in Settings
   });
   const fresh = $derived(previewKey !== null && JSON.stringify(payload) === previewKey);
 
   /* ---- Place search for each stop ---- */
   function matches(q) {
     q = norm(q);
-    const list = app.places.slice().sort((a, b) => (isHome(a.place) ? 0 : 1) - (isHome(b.place) ? 0 : 1) || a.place.localeCompare(b.place));
+    const list = app.places.slice().sort((a, b) => a.place.localeCompare(b.place));
     if (!q) return list.slice(0, 60);
     const starts = [], contains = [];
     for (const p of list) {
@@ -113,17 +111,6 @@
     if (norm(stops[last]) === norm(first)) { toast(`Route already returns to ${first}.`); return; }
     if (!stops[last].trim()) stops[last] = first; else stops.push(first);
   }
-  async function roundTripHome() {
-    const home = homePlace();
-    if (!home) { toast('Set your home place first (click your name at the bottom left → Account).'); return; }
-    const mid = stops.map((s) => s.trim()).filter(Boolean);
-    if (mid.length && norm(mid[0]) === norm(home)) mid.shift();
-    if (mid.length && norm(mid[mid.length - 1]) === norm(home)) mid.pop();
-    stops = [home, ...(mid.length ? mid : ['']), home];
-    await tick();
-    const empty = stops.indexOf('');
-    if (empty >= 0) inputs[empty]?.focus();
-  }
 
   /* ---- Preview + save ---- */
   function clientCheck(p) {
@@ -133,7 +120,6 @@
       if (!p.stops[i]) return `Stop ${i + 1} is empty.`;
       if (!placeByName(p.stops[i])) return `"${p.stops[i]}" is not a saved place. Pick from the list or add it on the Places page.`;
     }
-    if (!(p.ratePence > 0 && p.ratePence <= 200)) return 'Rate must be between 1 and 200 pence.';
     return '';
   }
 
@@ -223,7 +209,6 @@
     <div class="quick">
       <button type="button" class="btn small" onclick={addStop}>＋ Add stop</button>
       <button type="button" class="btn small" onclick={returnToStart}>↩ Return to start</button>
-      <button type="button" class="btn small" onclick={roundTripHome}>⌂ Round trip Home</button>
     </div>
 
     <h3 class="section-title">Details</h3>
@@ -231,15 +216,9 @@
       <label class="f" for="tReason">Visit reason</label>
       <input id="tReason" type="text" maxlength="200" bind:value={reason}>
     </div>
-    <div class="grid-2">
-      <div class="field">
-        <label class="f" for="tTicket">Ticket ID <span class="hint">(optional)</span></label>
-        <input id="tTicket" type="text" maxlength="50" bind:value={ticket}>
-      </div>
-      <div class="field">
-        <label class="f" for="tRate">Rate (pence/mile)</label>
-        <input id="tRate" type="number" inputmode="decimal" min="1" max="200" step="0.01" bind:value={rate}>
-      </div>
+    <div class="field">
+      <label class="f" for="tTicket">Ticket ID <span class="hint">(optional)</span></label>
+      <input id="tTicket" type="text" maxlength="50" bind:value={ticket}>
     </div>
     <div class="field">
       <label class="f" for="tCustomer">Customer override <span class="hint">(optional, applies to every leg)</span></label>
@@ -272,7 +251,7 @@ If you made the trip again, save as normal and it will be added as a separate en
           {/each}
         </tbody>
         <tfoot>
-          <tr><td></td><td>Total · {preview.legs.length} leg{preview.legs.length === 1 ? '' : 's'} @ {preview.ratePence}p</td>
+          <tr><td></td><td>Total · {preview.legs.length} leg{preview.legs.length === 1 ? '' : 's'}</td>
             <td class="num">{mi(preview.totalMiles)}</td><td class="num">{money(preview.totalClaim)}</td></tr>
         </tfoot>
       </table>

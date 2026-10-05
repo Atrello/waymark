@@ -2,7 +2,7 @@
   import { tick, untrack } from 'svelte';
   import qrcode from 'qrcode-generator';
   import { api, authCall, passkeysSupported, registerPasskey } from '../lib/api.js';
-  import { app, ROLE_LABELS, logsJourneys } from '../lib/app.svelte.js';
+  import { app, ROLE_LABELS } from '../lib/app.svelte.js';
   import { toast, confirmBox, askPassword, busy } from '../lib/ui.svelte.js';
   import { uk } from '../lib/format.js';
   import Msg from '../components/Msg.svelte';
@@ -14,13 +14,13 @@
 
   /* ---- Profile ---- */
   let name = $state(app.me.name);
-  let homePlaceId = $state(app.me.homePlaceId ? String(app.me.homePlaceId) : '');
-  let rate = $state(app.me.ratePenceOwn ?? '');
+  let email = $state(app.me.email || '');
   async function saveProfile(e) {
     e.preventDefault();
     try {
-      const r = await busy((b) => (working = b ? 'profile' : ''), () => api('PUT', '/api/me', { name: name.trim(), homePlaceId, ratePence: rate }));
+      const r = await busy((b) => (working = b ? 'profile' : ''), () => api('PUT', '/api/me', { name: name.trim(), email: email.trim() }));
       app.me = { ...app.me, ...r.me };
+      email = r.me.email || '';
       ok(r.message);
     } catch (err) { bad(err); }
   }
@@ -158,20 +158,11 @@
         <label class="f" for="meName">Name</label>
         <input id="meName" type="text" maxlength="80" bind:value={name}>
       </div>
-      {#if logsJourneys()}
-        <div class="field">
-          <label class="f" for="meHome">My home place</label>
-          <select id="meHome" bind:value={homePlaceId}>
-            <option value="">— None —</option>
-            {#each app.places as p (p.id)}<option value={String(p.id)}>{p.place}</option>{/each}
-          </select>
-          <p class="hint">Used by "Round trip Home"; a leg ending here takes the customer of where it started.</p>
-        </div>
-        <div class="field">
-          <label class="f" for="meRate">My rate (pence per mile)</label>
-          <input id="meRate" type="number" inputmode="decimal" min="1" max="200" step="0.01" placeholder="Company default" bind:value={rate}>
-        </div>
-      {/if}
+      <div class="field">
+        <label class="f" for="meEmail">Email <span class="hint">(optional)</span></label>
+        <input id="meEmail" type="email" maxlength="200" autocomplete="email" autocapitalize="none" spellcheck="false" bind:value={email}>
+        <p class="hint">Shown in your authenticator app and on passkeys. You sign in with your username, not your email.</p>
+      </div>
       <button type="submit" class="btn primary" disabled={working === 'profile'}>{@render spin('profile', 'Save profile')}</button>
     </div></form>
 

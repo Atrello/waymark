@@ -74,12 +74,13 @@ test('customer rule', () => {
   const office = { place: 'Office', customerId: 1, business: 'Example Ltd' };
   const depot = { place: 'Acme Depot', customerId: 2, business: 'Acme Ltd' };
   const acme = { id: 2, name: 'Acme Ltd' }, override = { id: 9, name: 'Override' };
-  const hs = new Set(['home', 'office']);
-  assert.deepEqual(util.legCustomer(home, depot, null, hs), acme);
-  assert.deepEqual(util.legCustomer(depot, home, null, hs), acme, 'leg ending at home takes the origin');
-  assert.deepEqual(util.legCustomer(depot, office, null, hs), acme, 'base places count as home');
-  assert.deepEqual(util.legCustomer(home, depot, override, hs), override);
-  assert.equal(util.legCustomer(depot, { place: 'Nowhere', customerId: null }, null, hs), null);
+  const fuel = { place: 'Fuel stop', customerId: null, business: '' };
+  assert.deepEqual(util.legCustomer(home, depot, null), acme, "a leg takes the destination's customer");
+  assert.deepEqual(util.legCustomer(depot, home, null), acme, 'the trip back from a site counts towards that customer');
+  assert.deepEqual(util.legCustomer(depot, fuel, null), acme, 'any destination without a customer takes the origin');
+  assert.deepEqual(util.legCustomer(depot, office, null), { id: 1, name: 'Example Ltd' }, 'a destination with a customer keeps it');
+  assert.deepEqual(util.legCustomer(home, depot, override), override, 'the override wins');
+  assert.equal(util.legCustomer(home, fuel, null), null, 'neither end has a customer');
 });
 
 test('database: places, cached trip, repeat trips, CSV, rename', async () => {
@@ -141,7 +142,7 @@ test('database: places, cached trip, repeat trips, CSV, rename', async () => {
     srv.close();
   }
   ADMIN = users.get(users.list().find((u) => u.username === 'admin').id);
-  assert.equal(ADMIN.homePlace, 'Home');
+  assert.equal(ADMIN.homePlace, undefined, 'users have no personal home place');
   assert.equal(ADMIN.email, 'admin@example.com');
   db.cachePut(util.pairKey('Home', 'Acme Depot'), 'Home', 'Acme Depot', 12, 'seed', null);
   db.cachePut(util.pairKey('Office', 'Acme Depot'), 'Office', 'Acme Depot', 24, 'seed', null);
@@ -368,6 +369,33 @@ test('users + roles over HTTP: admin, user, accounts', async () => {
     assert.equal(r.status, 200, r.text);
     r = await call(admin, 'POST', '/api/trips', { ...trip, ticket: 'ROLE-TEST' });
     assert.equal(r.status, 200, r.text);
+
+    // Rates come only from Settings: a rate sent with the trip (Bob sent 45p) or with a profile is ignored.
+    assert.ok(db.allLog().filter((x) => x.username === 'bob').every((x) => x.rate === 0.55), 'claimed at the company rate');
+    r = await call(bob, 'PUT', '/api/me', { name: 'Bob Engineer', homePlaceId: home.id, ratePence: 150 });
+    assert.equal(r.json.me.ratePence, 55, 'no personal rate');
+    assert.equal(r.json.me.ratePenceOwn, undefined);
+    assert.equal(r.json.me.homePlace, undefined, 'no personal home place either');
+
+    // Users change their own email.
+    r = await call(bob, 'PUT', '/api/me', { name: 'Bob Engineer', email: 'Bob@Example.com' });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.me.email, 'bob@example.com');
+    assert.match((await call(bob, 'PUT', '/api/me', { name: 'Bob Engineer', email: 'not-an-email' })).json.error, /not valid/);
+    assert.match((await call(bob, 'PUT', '/api/me', { name: 'Bob Engineer', email: 'admin@example.com' })).json.error, /already has that email/);
+    assert.equal(users.get(r.json.me.id).email, 'bob@example.com', 'refused changes leave it alone');
+    assert.ok(require('../lib/audit').list({ search: 'bob@example.com' }).rows.some((a) => a.action === 'account.profile'), 'logged');
+    r = await call(bob, 'PUT', '/api/me', { name: 'Bob Engineer', email: '' });
+    assert.equal(r.json.me.email, '', 'email can be cleared');
+    assert.equal(r.json.me.homePlaceId, undefined);
+    r = await call(bob, 'POST', '/api/trips/preview', { ...trip, ticket: 'RATE', ratePence: 199 });
+    assert.equal(r.json.ratePence, 55);
+    r = await call(admin, 'PUT', '/api/settings', { ratePence: 45 });
+    assert.equal(r.status, 200, r.text);
+    r = await call(bob, 'POST', '/api/trips/preview', { ...trip, ticket: 'RATE' });
+    assert.equal(r.json.ratePence, 45, 'changing the company rate changes new journeys');
+    assert.equal(r.json.totalClaim, 5.4);
+    await call(admin, 'PUT', '/api/settings', { ratePence: 55 });
 
     // Visibility.
     const bobLog = (await call(bob, 'GET', '/api/log')).json.rows;
