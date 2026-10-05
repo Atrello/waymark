@@ -574,3 +574,12 @@ body.picker { margin: 0; height: 100vh; display: flex; flex-direction: column; b
 .route-warn { margin-top: 8px; padding: 6px 10px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); }
 #routeModal .modal-body { padding: 0; }
 .login-title { margin: 0 0 6px; font-size: 20px; }
+#bKeepField .input-row { align-items: center; }
+#bKeep { flex: 0 0 90px; }
+
+/* ---------- Account page: two equal cards, same height, buttons lined up along the bottom ---------- */
+.account-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
+.account-grid > .panel { display: flex; flex-direction: column; }
+.account-grid > .panel > .panel-body { flex: 1 1 auto; display: flex; flex-direction: column; }
+.account-grid > .panel > .panel-body > .btn:last-child { margin-top: auto; align-self: flex-start; }
+@media (max-width: 900px) { .account-grid { grid-template-columns: minmax(0, 1fr); } }

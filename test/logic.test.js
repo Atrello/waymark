@@ -594,3 +594,44 @@ test('route map: route for an entry, cached by coordinates, same visibility as t
     googleKey.removeKey();
   }
 });
+
+test('scheduled backups: UK-time schedule maths, runs once per slot, keeps the last N, never prunes manual backups', async () => {
+  const schedule = require('../lib/schedule');
+  const at = (iso) => Date.parse(iso);
+
+  // Schedule maths (times are UK wall-clock).
+  const weekly = schedule.window({ frequency: 'weekly', start: '2026-10-06T02:00' }, at('2026-10-20T12:00:00Z'));
+  assert.equal(new Date(weekly.last).toISOString(), '2026-10-20T01:00:00.000Z', 'Tue 02:00 BST');
+  assert.equal(schedule.occurrence({ frequency: 'monthly', start: '2026-01-31T02:00' }, 1), at('2026-02-28T02:00:00Z'), 'last day of Feb');
+  const daily = schedule.window({ frequency: 'daily', start: '2026-10-20T02:00' }, at('2026-10-26T12:00:00Z'));
+  assert.equal(new Date(daily.last).toISOString(), '2026-10-26T02:00:00.000Z', 'still 02:00 UK after the clocks go back');
+  assert.deepEqual(schedule.window({ frequency: 'off', start: '2026-01-01T00:00' }, Date.now()), { last: null, next: null });
+  assert.equal(schedule.window({ frequency: 'daily', start: '2030-01-01T02:00' }, at('2026-10-05T12:00:00Z')).last, null, 'not started yet');
+  assert.throws(() => schedule.parseSchedule({ frequency: 'fortnightly', start: '2026-10-06T02:00' }), /how often/);
+  assert.throws(() => schedule.parseSchedule({ frequency: 'daily', start: '2026-02-30T02:00' }), /start date/);
+  assert.throws(() => schedule.parseSchedule({ frequency: 'daily', start: '2026-10-06T02:00', keep: -1 }), /whole number/);
+
+  // Saving a schedule never sets off a backup at once; each scheduled slot then backs up exactly once.
+  const dir = process.env.BACKUP_DIR;
+  const autos = () => fs.readdirSync(dir).filter((f) => /^waymark-auto-\d/.test(f) && f.endsWith('.db')).sort();
+  const manual = exporter.backupNow('manual', new Date('2026-01-01T00:00:00Z'));
+  const now = new Date('2026-10-05T12:00:00Z');
+  const st = exporter.setSchedule({ frequency: 'daily', start: '2026-10-01T02:00', keep: 2 }, now);
+  assert.equal(st.nextText, 'Tue 06/10/2026 02:00');
+  assert.equal(await exporter.schedulerTick(now), null, 'nothing due yet');
+  const day = (n) => new Date(Date.parse('2026-10-06T03:00:00Z') + n * 86400000);
+  assert.ok(await exporter.schedulerTick(day(0)), 'Tuesday 02:00 slot backs up');
+  assert.equal(await exporter.schedulerTick(new Date(day(0).getTime() + 60000)), null, 'only once per slot');
+  // Off for three days: one catch-up backup, not three.
+  assert.ok(await exporter.schedulerTick(day(3)));
+  assert.equal(await exporter.schedulerTick(day(3)), null);
+  assert.ok(await exporter.schedulerTick(day(4)));
+  assert.deepEqual(autos(), ['waymark-auto-2026-10-09-03-00-00.db', 'waymark-auto-2026-10-10-03-00-00.db'], 'kept the newest 2');
+  assert.ok(fs.existsSync(manual.dbFile) && fs.existsSync(manual.csvFile), 'manual backups are never pruned');
+  assert.ok(require('../lib/audit').list({ area: 'backup' }).rows.some((a) => a.action === 'backup.scheduled' && /every day/.test(a.summary)));
+  assert.equal(exporter.scheduleStatus(day(4)).lastFile, 'waymark-auto-2026-10-10-03-00-00.db');
+
+  // Off means off.
+  exporter.setSchedule({ frequency: 'off', start: '2026-10-01T02:00', keep: 2 }, day(4));
+  assert.equal(await exporter.schedulerTick(day(30)), null);
+});

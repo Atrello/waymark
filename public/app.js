@@ -279,6 +279,7 @@
     'customer.delete': 'Customer deleted', 'user.create': 'User added', 'user.update': 'User changed', 'user.delete': 'User deleted',
     'settings.update': 'Settings changed', 'settings.google_key': 'Google key changed',
     'backup.server': 'Backup saved', 'backup.download': 'Backup downloaded', 'backup.yearly': 'Yearly backup',
+    'backup.scheduled': 'Scheduled backup',
     'auth.sign_in': 'Signed in', 'auth.sign_in_failed': 'Failed sign-in', 'auth.locked_out': 'Sign-in blocked',
     'auth.sign_out': 'Signed out', 'account.profile': 'Profile changed', 'account.password': 'Password changed',
     'security.2fa_on': 'Two-factor on', 'security.2fa_off': 'Two-factor off', 'security.backup_codes': 'Backup codes',
@@ -313,7 +314,7 @@
 
   function renderActivity() {
     $('activityBody').innerHTML = activity.rows.length ? activity.rows.map(function (r) {
-      var who = r.username || (r.action === 'backup.yearly' ? 'System' : '—');
+      var who = r.username || (/^backup\.(yearly|scheduled)$/.test(r.action) ? 'System' : '—');
       return '<tr>' +
         '<td class="c-awhen nowrap">' + esc(activityWhen(r.at)) + '</td>' +
         '<td class="c-awho">' + esc(who) + '</td>' +
@@ -361,6 +362,7 @@
     if (name === 'export') loadExportSummary();
     if (name === 'users') loadUsers();
     if (name === 'activity') loadActivity(false);
+    if (name === 'settings') loadBackupSchedule();
     if (location.hash !== '#' + name) history.replaceState(null, '', '#' + name);
   }
   // Links like /#settings and the browser's back/forward buttons switch page too.
@@ -1515,6 +1517,42 @@
 
   $('whoami').addEventListener('click', function () { showPage('account'); });
   $('pwBannerGo').addEventListener('click', function () { showPage('account'); $('pwCurrent').focus(); });
+
+  /* ---- Scheduled backups (admin) ---- */
+
+  function renderBackupSchedule(b) {
+    $('bFreq').value = b.frequency;
+    $('bStart').value = b.start;
+    $('bKeep').value = b.keep;
+    syncBackupFields();
+    var when = function (iso) { return iso ? new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit',
+      year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(/,/g, '') : ''; };
+    $('bStatus').textContent = (b.frequency === 'off' ? 'Scheduled backups are off.' : 'Next backup: ' + (b.nextText || '—') + '.') +
+      (b.lastRun ? ' Last scheduled backup: ' + when(b.lastRun) + (b.lastFile ? ' (' + b.lastFile + ')' : '') + '.' : '');
+  }
+  function syncBackupFields() {
+    var off = $('bFreq').value === 'off';
+    $('bStartField').hidden = off;
+    $('bKeepField').hidden = off;
+  }
+  function loadBackupSchedule() {
+    if (role() !== 'admin') return;
+    api('GET', '/api/settings/backup-schedule').then(function (r) { renderBackupSchedule(r.backup); })
+      .catch(function (e) { $('bStatus').textContent = e.message; });
+  }
+  $('bFreq').addEventListener('change', function () {
+    syncBackupFields();
+    if ($('bFreq').value === 'hourly' && Number($('bKeep').value) === 0) $('bKeep').value = 48; // two days of hourly copies
+  });
+  $('backupForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    busy($('btnSaveSchedule'), api('PUT', '/api/settings/backup-schedule', {
+      frequency: $('bFreq').value, start: $('bStart').value, keep: $('bKeep').value,
+    })).then(function (r) {
+      renderBackupSchedule(r.backup);
+      showMsg('settingsMsg', r.message, 'ok');
+    }).catch(function (err) { showMsg('settingsMsg', err.message, 'bad'); });
+  });
 
   $('btnBackup').addEventListener('click', function () {
     busy(this, api('POST', '/api/backup')).then(function (r) { showMsg('settingsMsg', r.message, 'ok'); })

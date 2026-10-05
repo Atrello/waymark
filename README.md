@@ -53,7 +53,7 @@ They must be separate keys: the browser key is visible to signed-in users, and G
 
 ## Backups
 
-- A backup is saved automatically each year on or after 6 April, to `backups/`.
-- Back up any time with `npm run backup`, or from **Settings**.
+- Scheduled backups: choose how often (hourly to yearly) and a start date and time (UK time) in **Settings → Backups**. They're saved to `backups/` as `waymark-auto-*`, and only the newest N are kept. If the server was off at a scheduled time, it backs up once when it next starts. The default is yearly on 6 April, keeping all.
+- Back up by hand any time with `npm run backup`, or from **Settings**. Backups made by hand are never deleted automatically.
 - Copy `backups/` somewhere off this machine.
 - To restore: stop the app, replace `data/waymark.db` with a backup, start it again.

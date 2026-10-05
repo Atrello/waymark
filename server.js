@@ -21,6 +21,7 @@ const googleKey = require('./lib/googleKey');
 const customers = require('./lib/customers');
 const users = require('./lib/users');
 const audit = require('./lib/audit');
+const schedule = require('./lib/schedule');
 const { UserError, todayIso, ukDate, str } = require('./lib/util');
 
 /* ---------------- Config ---------------- */
@@ -505,6 +506,21 @@ api.put('/settings', ADMIN, (req, res) => {
     ['Base places', before.homePlaces.join(', '), after.homePlaces.join(', ')]]);
   if (diff) note(req, 'settings.update', `Changed settings: ${diff}`);
   res.json({ message: 'Settings saved.', settings: after });
+});
+
+/* Scheduled backups: how often, starting when (UK time), and how many scheduled backups to keep. */
+const scheduleText = (s) => `${schedule.FREQUENCIES[s.frequency]}${s.frequency === 'off' ? '' : ` from ${s.start.replace('T', ' ')}`}` +
+  `${s.frequency === 'off' ? '' : `, keep ${s.keep || 'all'}`}`;
+api.get('/settings/backup-schedule', ADMIN, (req, res) => res.json({ backup: exporter.scheduleStatus() }));
+api.put('/settings/backup-schedule', ADMIN, (req, res) => {
+  const before = exporter.getSchedule();
+  const backup = exporter.setSchedule(req.body);
+  const diff = changes([['Backup schedule', scheduleText(before), scheduleText(backup)]]);
+  if (diff) note(req, 'settings.update', `Changed settings: ${diff}`);
+  res.json({
+    message: backup.frequency === 'off' ? 'Scheduled backups are off.' : `Backup schedule saved. Next backup: ${backup.nextText}.`,
+    backup,
+  });
 });
 
 api.post('/backup', ADMIN, (req, res) => {

@@ -313,7 +313,7 @@
         </div>
       </header>
       <div id="accountMsg" hidden></div>
-      <div class="export-grid mb16">
+      <div class="account-grid mb16">
         <form class="panel" id="profileForm" novalidate><div class="panel-body">
           <h2 class="section-title">My account</h2>
           <p class="hint mb10" id="meLine"></p>
@@ -453,7 +453,36 @@
         </div></form>
         <div class="panel"><div class="panel-body">
           <h2 class="section-title">Backups</h2>
-          <p class="hint">HMRC requires mileage records to be kept for 6 years. The server makes an automatic backup every year on 6 April. You can also back up at any time.</p>
+          <form id="backupForm" novalidate>
+            <div class="grid-2">
+              <div class="field">
+                <label class="f" for="bFreq">Back up automatically</label>
+                <select id="bFreq">
+                  <option value="off">Off</option>
+                  <option value="hourly">Every hour</option>
+                  <option value="6h">Every 6 hours</option>
+                  <option value="daily">Every day</option>
+                  <option value="weekly">Every week</option>
+                  <option value="monthly">Every month</option>
+                  <option value="yearly">Every year</option>
+                </select>
+              </div>
+              <div class="field" id="bStartField">
+                <label class="f" for="bStart">Starting <span class="hint">(UK time)</span></label>
+                <input id="bStart" type="datetime-local">
+              </div>
+            </div>
+            <div class="field" id="bKeepField">
+              <label class="f" for="bKeep">Keep the last</label>
+              <div class="input-row">
+                <input id="bKeep" type="number" inputmode="numeric" min="0" max="10000" step="1">
+                <span class="hint">scheduled backups (0 keeps them all). Backups you make by hand are never deleted.</span>
+              </div>
+            </div>
+            <p class="hint" id="bStatus"></p>
+            <button type="submit" class="btn primary mb16" id="btnSaveSchedule">Save schedule</button>
+          </form>
+          <p class="hint">Back up by hand at any time. Keep copies somewhere off this machine: HMRC requires 6 years of records.</p>
           <div class="btn-col">
             <a class="btn primary" href="/api/backup/download">Download database backup (.db)</a>
             <button type="button" class="btn" id="btnBackup">Save backup on server now</button>
