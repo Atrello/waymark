@@ -157,6 +157,7 @@ app.all('/api/auth/{*rest}', async (req, res, next) => {
       }
     } else if (ok && before && sub === '/two-factor/verify-totp') {
       audit.record(before, 'security.2fa_on', 'Turned on two-factor sign-in', req.ip);
+      users.setTwoFactorPrompt(before.id, false);
     } else if (ok && before && SECURITY_EVENTS[sub]) {
       audit.record(before, ...SECURITY_EVENTS[sub], req.ip);
     }
@@ -201,6 +202,28 @@ app.post('/logout', async (req, res) => {
     forwardCookies(r, res);
   } catch { /* already signed out */ }
   res.redirect(303, '/login');
+});
+
+/*
+ * First-run setup: until an account exists, the sign-in page offers to create the administrator.
+ * Whoever does it first becomes the admin; after that these refuse (see users.createFirstAdmin).
+ */
+app.get('/api/setup', async (req, res) => {
+  await ready;
+  res.set('Cache-Control', 'no-store').json({ needed: users.needsSetup() });
+});
+app.post('/api/setup', async (req, res) => {
+  await ready;
+  if (req.get('X-Requested-With') !== 'waymark') return res.status(403).json({ error: 'Bad request origin.' });
+  const b = req.body || {};
+  const u = await users.createFirstAdmin(b);
+  audit.record(u, 'user.create', `Created the first administrator account ${u.username} (first-run setup)`, req.ip);
+  const r = await authLib.get().api.signInUsername({
+    body: { username: u.username, password: String(b.password), rememberMe: true }, headers: fromNodeHeaders(req.headers), asResponse: true,
+  });
+  forwardCookies(r, res);
+  audit.record(u, 'auth.sign_in', 'Signed in (password, first-run setup)', req.ip);
+  res.json({ ok: true });
 });
 
 // Everything below needs a signed-in, active user (req.user).
@@ -286,6 +309,11 @@ api.put('/me', (req, res) => {
   if (diff) note(req, 'account.profile', `Updated own profile: ${diff}`);
   r.me = meView(r.me);
   res.json(r);
+});
+// The two-factor suggestion shown after first-run setup: 'Skip for now' turns it off.
+api.put('/me/two-factor-prompt', (req, res) => {
+  users.setTwoFactorPrompt(req.user.id, false);
+  res.json({ ok: true });
 });
 api.put('/me/password', async (req, res) => {
   const b = req.body || {};
@@ -525,7 +553,12 @@ if (require.main === module) {
       console.log(`Waymark running on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`);
       console.log(`App URL (passkeys): ${authLib.appUrl().origin}`);
       console.log(`Database: ${db.open().filePath}`);
-      console.log(`Users: ${users.list().filter((u) => u.active).map((u) => `${u.username} (${u.role})`).join(', ')}`);
+      if (users.needsSetup()) {
+        console.log(`No accounts yet. Open ${authLib.appUrl().origin} to create the administrator account.`);
+        console.log('Until then, the first person to open the app can create it.');
+      } else {
+        console.log(`Users: ${users.list().filter((u) => u.active).map((u) => `${u.username} (${u.role})`).join(', ')}`);
+      }
       const g = googleKey.status();
       console.log(`Google key: ${g.configured ? `set (${g.source === 'app' ? 'saved in Settings' : '.env'})` : 'not set (add it in Settings)'}`);
     });

@@ -556,3 +556,4 @@ body.picker { margin: 0; height: 100vh; display: flex; flex-direction: column; b
 .route-figures b { color: var(--text); }
 .route-warn { margin-top: 8px; padding: 6px 10px; border-radius: 8px; background: var(--warn-soft); color: var(--warn); }
 #routeModal .modal-body { padding: 0; }
+.login-title { margin: 0 0 6px; font-size: 20px; }

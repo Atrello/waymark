@@ -11,7 +11,6 @@ process.env.DB_FILE = path.join(tmp, 'test.db');
 process.env.BACKUP_DIR = path.join(tmp, 'backups');
 delete process.env.GOOGLE_MAPS_API_KEY;
 process.env.SESSION_SECRET = require('node:crypto').randomBytes(32).toString('hex');
-process.env.APP_PASSWORD = 'pw-for-tests-only';
 process.env.APP_URL = 'http://localhost:3000';
 
 const util = require('../lib/util');
@@ -96,9 +95,54 @@ test('database: places, cached trip, duplicate block, CSV, rename', async () => 
   add('Beta Site', '', '', 'Beta Corp');
   assert.throws(() => add('home', 1, 1, ''), /already exists/);
 
-  await authLib.init(); // creates "admin" (admin) from APP_PASSWORD; home = Home
+  // First-run setup: no accounts yet, so the first visitor creates the administrator (and is signed in).
+  const app = require('../server');
+  await app.ready;
+  const srv = app.listen(0);
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  try {
+    const setup = (body, headers = { 'X-Requested-With': 'waymark' }) => fetch(`${base}/api/setup`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+    assert.deepEqual(await (await fetch(`${base}/api/setup`)).json(), { needed: true });
+    assert.equal((await setup({ username: 'admin', email: 'admin@example.com', password: PW }, {})).status, 403, 'needs our header');
+    assert.match((await (await setup({ username: 'admin', email: '', password: PW })).json()).error, /email/);
+    assert.match((await (await setup({ username: 'admin', email: 'admin@example.com', password: 'short' })).json()).error, /at least 10/);
+    // Two people submitting at once: once one setup has started, the other is refused (no second admin).
+    const realCreate = users.createFirstAdmin;
+    let started;
+    const adminStarted = new Promise((resolve) => { started = resolve; });
+    users.createFirstAdmin = (input) => { const p = realCreate(input); started(); return p; };
+    let a, b;
+    try {
+      const pa = setup({ username: 'admin', email: 'admin@example.com', password: PW });
+      await adminStarted;
+      b = await setup({ username: 'intruder', email: 'x@example.com', password: 'intruder-password-1' });
+      a = await pa;
+    } finally {
+      users.createFirstAdmin = realCreate;
+    }
+    assert.equal(a.status, 200, await a.clone().text());
+    assert.equal(b.status, 400);
+    assert.match((await b.json()).error, /already been set up/);
+    const cookie = a.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
+    const init = await (await fetch(`${base}/api/init`, { headers: { cookie } })).json();
+    assert.equal(init.me.username, 'admin', 'signed in straight away');
+    assert.equal(init.me.role, 'admin');
+    assert.equal(init.me.promptTwoFactor, true, 'two-factor is suggested');
+    assert.deepEqual(await (await fetch(`${base}/api/setup`)).json(), { needed: false });
+    assert.match((await (await setup({ username: 'late', email: 'l@example.com', password: 'late-password-1' })).json()).error,
+      /already been set up/);
+    assert.equal(users.list().length, 1);
+    // "Skip for now" stops the suggestion.
+    const skip = await fetch(`${base}/api/me/two-factor-prompt`, { method: 'PUT', headers: { cookie, 'X-Requested-With': 'waymark' } });
+    assert.equal(skip.status, 200);
+    assert.equal((await (await fetch(`${base}/api/init`, { headers: { cookie } })).json()).me.promptTwoFactor, false);
+  } finally {
+    srv.close();
+  }
   ADMIN = users.get(users.list().find((u) => u.username === 'admin').id);
   assert.equal(ADMIN.homePlace, 'Home');
+  assert.equal(ADMIN.email, 'admin@example.com');
   db.cachePut(util.pairKey('Home', 'Acme Depot'), 'Home', 'Acme Depot', 12, 'seed', null);
   db.cachePut(util.pairKey('Office', 'Acme Depot'), 'Office', 'Acme Depot', 24, 'seed', null);
 

@@ -1406,6 +1406,20 @@
   });
   $('tfCode').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); $('btnTfVerify').click(); } });
 
+  // The suggestion shown after first-run setup. "Skip" stops it for good; "Set up now" starts the normal flow
+  // (the server stops suggesting once two-factor is on; if they abandon it half way, it's suggested again next time).
+  $('btnTfPromptSkip').addEventListener('click', function () {
+    closeModal('tfPromptModal');
+    api('PUT', '/api/me/two-factor-prompt').then(function () {
+      toast('Skipped. You can turn on two-factor sign-in any time in Settings.');
+    }).catch(function () { /* it'll just be suggested again next time */ });
+  });
+  $('btnTfPromptGo').addEventListener('click', function () {
+    closeModal('tfPromptModal');
+    showPage('settings');
+    $('btnTfOn').click();
+  });
+
   $('btnTfCancel').addEventListener('click', function () { $('tfSetup').hidden = true; showMsg('settingsMsg', ''); });
   $('btnTfDone').addEventListener('click', function () { $('tfSetup').hidden = true; pendingCodes = []; });
   $('btnTfCopy').addEventListener('click', function () {
@@ -1539,6 +1553,7 @@
     renderGoogle(d.google);
     renderMapsKey(d.mapsPicker);
     $('pwBanner').hidden = !d.me.mustChangePassword;
+    if (d.me.promptTwoFactor) openModal('tfPromptModal'); // suggested once after first-run setup
     showPage(location.hash.slice(1));
     return loadLog();
   }).catch(function (e) {

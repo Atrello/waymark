@@ -9,7 +9,7 @@ Self-hosted business mileage log. Log journeys, get driving distances from Googl
 - **Users:** Administrator, User and Accounts (read-only) roles; optional two-factor sign-in and passkeys.
 - **Activity log:** permanent, append-only record of every change, export and sign-in.
 
-Node.js + Express + SQLite (one file, `data/mileage.db`). No build step.
+Node.js + Express + SQLite (one file, `data/waymark.db`). No build step.
 
 ## Setup
 
@@ -25,13 +25,12 @@ Set these in `.env`:
 
 | Setting | |
 |---|---|
-| `APP_PASSWORD` | Password for the first admin (`admin`, or `ADMIN_USERNAME`), created on first start. |
 | `SESSION_SECRET` | Long random string: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Changing it signs everyone out and makes the saved Google key unreadable. |
 | `APP_URL` | The address people use, e.g. `http://localhost:3000`. Passkeys only work here. |
 | `HOST`, `PORT` | `0.0.0.0` to allow other devices on the network, `127.0.0.1` for this PC only. |
 | `TRUSTED_ORIGINS` | Any other addresses people sign in from, e.g. `http://192.168.1.20:3000`. |
 
-Then open the app and sign in as `admin`.
+Then open the app. On a new install there are no accounts, so the first person to open it creates the administrator (username, email, password) and is offered two-factor sign-in. Do this straight away, unless you like danger...
 
 ## Google keys
 
@@ -57,4 +56,4 @@ They must be separate keys: the browser key is visible to signed-in users, and G
 - A backup is saved automatically each year on or after 6 April, to `backups/`.
 - Back up any time with `npm run backup`, or from **Settings**.
 - Copy `backups/` somewhere off this machine.
-- To restore: stop the app, replace `data/mileage.db` with a backup, start it again.
+- To restore: stop the app, replace `data/waymark.db` with a backup, start it again.

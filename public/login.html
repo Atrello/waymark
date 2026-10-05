@@ -19,6 +19,31 @@
       </div>
       <div id="loginMsg" class="msg bad" hidden></div>
 
+      <!-- First run only: no accounts exist yet, so the first visitor creates the administrator -->
+      <div id="stepSetup" hidden>
+        <h2 class="login-title">Welcome to Waymark</h2>
+        <p class="hint mb16">Create your account to get started. You'll be the administrator, and can add other people later.</p>
+        <div class="field">
+          <label class="f" for="setupUsername">Username</label>
+          <input id="setupUsername" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="40">
+          <p class="hint">2–40 characters: letters, numbers, dot, dash or underscore.</p>
+        </div>
+        <div class="field">
+          <label class="f" for="setupEmail">Email</label>
+          <input id="setupEmail" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="200">
+        </div>
+        <div class="field">
+          <label class="f" for="setupPassword">Password</label>
+          <input id="setupPassword" type="password" autocomplete="new-password" maxlength="200">
+          <p class="hint">At least 10 characters.</p>
+        </div>
+        <div class="field">
+          <label class="f" for="setupConfirm">Confirm password</label>
+          <input id="setupConfirm" type="password" autocomplete="new-password" maxlength="200">
+        </div>
+        <button type="submit" class="btn primary" id="btnSetup">Create account</button>
+      </div>
+
       <!-- Step 1: username + password (or passkey) -->
       <div id="stepPassword">
         <div class="field">

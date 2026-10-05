@@ -738,6 +738,23 @@
 </div>
 
 <!-- ================= Confirm modal ================= -->
+<div class="modal" id="tfPromptModal" hidden role="dialog" aria-modal="true" aria-labelledby="tfPromptTitle">
+  <div class="modal-card narrow">
+    <div class="modal-head">
+      <h2 id="tfPromptTitle">Protect your account</h2>
+    </div>
+    <div class="modal-body">
+      <p>Turn on <b>two-factor sign-in</b> so that a password on its own isn't enough to get into Waymark. After your password, you'll enter a 6-digit code from an authenticator app on your phone (Microsoft Authenticator, Google Authenticator, 1Password and so on).</p>
+      <p class="hint">It takes about a minute. You can also do it later in Settings.</p>
+    </div>
+    <div class="modal-foot">
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="btnTfPromptSkip">Skip for now</button>
+      <button type="button" class="btn primary" id="btnTfPromptGo">Set up now</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="confirmModal" hidden role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
   <div class="modal-card narrow">
     <div class="modal-head"><h2 id="confirmTitle">Are you sure?</h2></div>
