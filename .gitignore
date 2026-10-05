@@ -1,0 +1,22 @@
+# Dependencies (reinstalled with npm install)
+node_modules/
+
+# Your data: the database, backups and exports never go in git
+data/
+backups/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.csv
+
+# Secrets: .env holds SESSION_SECRET and your settings (.env.example is the safe template)
+.env
+.env.*
+!.env.example
+
+# Other local files
+*.msi
+*.log
+Thumbs.db
+.DS_Store

@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1f3a">
+  <title>Waymark</title>
+  <script src="/theme.js"></script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="app">
+  <!-- ================= Sidebar ================= -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">W</div>
+      <div><b>Waymark</b><small>Personal mileage log</small></div>
+    </div>
+    <nav class="nav" role="tablist" aria-label="Sections">
+      <button type="button" role="tab" data-page="mileage" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M6 17l1.5-6h9L18 17"/><circle cx="8" cy="18" r="1.5"/><circle cx="16" cy="18" r="1.5"/><path d="M8 11l1-4h6l1 4"/></svg>
+        Mileage
+      </button>
+      <button type="button" role="tab" data-page="customers" aria-selected="false" data-roles="admin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V7l9-4 9 4v14"/><path d="M9 21v-6h6v6"/><path d="M8 10h.01M12 10h.01M16 10h.01"/></svg>
+        Customers
+      </button>
+      <button type="button" role="tab" data-page="places" aria-selected="false" data-roles="admin user">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+        Places
+      </button>
+      <button type="button" role="tab" data-page="export" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+        Export
+      </button>
+      <button type="button" role="tab" data-page="users" aria-selected="false" data-roles="admin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.5 14.6c2.4.3 4.2 2 4.9 5.4"/></svg>
+        Users
+      </button>
+      <button type="button" role="tab" data-page="activity" aria-selected="false" data-roles="admin accounts">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        Activity
+      </button>
+      <button type="button" role="tab" data-page="settings" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        Settings
+      </button>
+    </nav>
+    <div class="whoami" id="whoami"></div>
+    <form class="side-foot" method="post" action="/logout">
+      <button type="button" class="theme-btn" id="btnTheme" aria-label="Change theme"></button>
+      <button type="submit" class="link-btn">Log out</button>
+    </form>
+  </aside>
+
+  <main class="content">
+    <div id="globalMsg" class="msg info"><span class="spinner"></span> Loading…</div>
+    <div id="pwBanner" class="msg warn" hidden>You are using a temporary password. <button type="button" class="link-inline" id="pwBannerGo">Change it now</button></div>
+
+    <!-- ================= Mileage ================= -->
+    <section class="page" id="page-mileage" hidden>
+      <header class="page-head">
+        <div>
+          <h1>Mileage</h1>
+          <p>Every journey leg in the log. Filter, sort, and add new journeys.</p>
+        </div>
+        <button type="button" class="btn primary" id="btnAddTrip" data-roles="admin user">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Add journey
+        </button>
+      </header>
+
+      <div class="kpis summary-kpis" id="logKpis"></div>
+
+      <div class="panel">
+        <div class="toolbar">
+          <label class="tf"><span>Year</span><select id="fYear"></select></label>
+          <label class="tf"><span>Month</span>
+            <select id="fMonth">
+              <option value="">All months</option>
+              <option value="01">January</option><option value="02">February</option><option value="03">March</option>
+              <option value="04">April</option><option value="05">May</option><option value="06">June</option>
+              <option value="07">July</option><option value="08">August</option><option value="09">September</option>
+              <option value="10">October</option><option value="11">November</option><option value="12">December</option>
+            </select>
+          </label>
+          <label class="tf" data-roles="admin accounts"><span>User</span><select id="fUser"></select></label>
+          <label class="tf"><span>Customer</span><select id="fBusiness"></select></label>
+          <label class="tf"><span>Type</span>
+            <select id="fType"><option value="">All</option><option value="Live">Live</option><option value="Test">Test</option></select>
+          </label>
+          <label class="tf grow"><span>Search</span><input id="fSearch" type="search" placeholder="Place, address, reason, ticket…"></label>
+          <button type="button" class="btn small ghost" id="fClear">Clear</button>
+        </div>
+        <div class="table-wrap">
+          <table class="grid log">
+            <thead>
+              <tr>
+                <th data-sort="userName" class="c-user">User</th>
+                <th data-sort="date">Date</th>
+                <th data-sort="start">Start</th>
+                <th data-sort="dest">Destination</th>
+                <th data-sort="reason">Visit reason</th>
+                <th data-sort="business">Customer</th>
+                <th data-sort="miles" class="num">Miles</th>
+                <th data-sort="rate" class="num">Rate</th>
+                <th data-sort="claim" class="num">Claim</th>
+                <th data-sort="type">Type</th>
+                <th data-sort="ticket">Ticket</th>
+                <th aria-label="Actions"></th>
+              </tr>
+            </thead>
+            <tbody id="logBody"></tbody>
+            <tfoot id="logFoot"></tfoot>
+          </table>
+        </div>
+        <div class="table-foot">
+          <span id="logCount"></span>
+          <button type="button" class="btn small" id="logMore" hidden>Show more</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= Places ================= -->
+    <section class="page" id="page-customers" hidden>
+      <header class="page-head">
+        <div>
+          <h1>Customers</h1>
+          <p>Each site belongs to a customer. Rename a customer here and it updates everywhere.</p>
+        </div>
+        <button type="button" class="btn primary" id="btnAddCustomer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Add customer
+        </button>
+      </header>
+      <div class="panel">
+        <div class="toolbar">
+          <label class="tf grow"><span>Search</span><input id="cSearch" type="search" placeholder="Customer or site name…"></label>
+          <span class="muted" id="cCount"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="grid customers">
+            <thead>
+              <tr>
+                <th data-csort="name">Customer</th>
+                <th>Sites</th>
+                <th data-csort="legs" class="num">Legs</th>
+                <th data-csort="miles" class="num">Miles</th>
+                <th data-csort="claim" class="num">Claim</th>
+                <th data-csort="lastVisit">Last visit</th>
+              </tr>
+            </thead>
+            <tbody id="customerBody"></tbody>
+          </table>
+        </div>
+        <div class="table-foot"><span>Totals are Live journeys, all time.</span></div>
+      </div>
+    </section>
+
+    <section class="page" id="page-places" hidden>
+      <header class="page-head">
+        <div>
+          <h1>Places</h1>
+          <p>Saved destinations used in the route builder. Click a row to edit.</p>
+        </div>
+        <button type="button" class="btn primary" id="btnAddPlace" data-roles="admin user">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Add place
+        </button>
+      </header>
+
+      <div class="panel">
+        <div class="toolbar">
+          <label class="tf grow"><span>Search</span><input id="pSearch" type="search" placeholder="Name, address, customer…"></label>
+          <label class="check"><input id="pMissingOnly" type="checkbox"> Missing coordinates only</label>
+          <span class="muted" id="pCount"></span>
+        </div>
+        <div class="table-wrap">
+          <table class="grid places">
+            <thead>
+              <tr>
+                <th data-psort="place">Place</th>
+                <th data-psort="address">Address</th>
+                <th>Coordinates</th>
+                <th data-psort="business">Customer</th>
+                <th>Notes</th>
+                <th data-psort="status">Status</th>
+              </tr>
+            </thead>
+            <tbody id="placeBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= Users ================= -->
+    <section class="page" id="page-users" hidden>
+      <header class="page-head">
+        <div>
+          <h1>Users</h1>
+          <p>Who can sign in, and what they can do.</p>
+        </div>
+        <button type="button" class="btn primary" id="btnAddUser">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          Add user
+        </button>
+      </header>
+      <div class="panel">
+        <div class="table-wrap">
+          <table class="grid users">
+            <thead>
+              <tr><th>Name</th><th>Username</th><th>Role</th><th>Home place</th><th class="num">Journey legs</th><th>Security</th><th>Last sign-in</th><th>Status</th></tr>
+            </thead>
+            <tbody id="userBody"></tbody>
+          </table>
+        </div>
+        <div class="table-foot"><span><b>Administrator</b>: everything. <b>User</b>: logs and sees their own journeys. <b>Accounts</b>: read-only view and export of everyone's journeys.</span></div>
+      </div>
+    </section>
+
+    <!-- ================= Activity ================= -->
+    <section class="page" id="page-activity" hidden>
+      <header class="page-head">
+        <div>
+          <h1>Activity</h1>
+          <p>Who did what, and when. Entries are permanent and can't be edited or deleted.</p>
+        </div>
+      </header>
+      <div class="panel">
+        <div class="toolbar">
+          <label class="tf"><span>User</span><select id="aUser"></select></label>
+          <label class="tf"><span>Area</span>
+            <select id="aArea">
+              <option value="">Everything</option>
+              <option value="journey">Journeys</option>
+              <option value="export">Exports</option>
+              <option value="place">Places</option>
+              <option value="customer">Customers</option>
+              <option value="user">Users</option>
+              <option value="settings">Settings</option>
+              <option value="backup">Backups</option>
+              <option value="auth">Sign-ins</option>
+              <option value="security">Account security</option>
+              <option value="account">Own account</option>
+            </select>
+          </label>
+          <label class="tf grow"><span>Search</span><input id="aSearch" type="search" placeholder="Entry ID, place, file name, IP address…"></label>
+          <button type="button" class="btn small ghost" id="aClear">Clear</button>
+        </div>
+        <div class="table-wrap">
+          <table class="grid activity">
+            <thead>
+              <tr><th>When</th><th>Who</th><th>Action</th><th>Details</th><th>From</th></tr>
+            </thead>
+            <tbody id="activityBody"></tbody>
+          </table>
+        </div>
+        <div class="table-foot">
+          <span id="activityCount"></span>
+          <button type="button" class="btn small" id="activityMore" hidden>Show older</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= Export ================= -->
+    <section class="page" id="page-export" hidden>
+      <header class="page-head">
+        <div>
+          <h1>Export</h1>
+          <p>Claim CSV for a month or date range. Live entries only, with totals and a summary.</p>
+        </div>
+      </header>
+      <div id="exportMsg" hidden></div>
+      <div class="export-grid">
+        <div class="panel"><div class="panel-body">
+          <div class="seg mb16">
+            <label><input type="radio" name="xMode" value="month" checked><span>Month</span></label>
+            <label><input type="radio" name="xMode" value="range"><span>Date range</span></label>
+          </div>
+          <div class="field" data-roles="admin accounts">
+            <label class="f" for="xUser">User</label>
+            <select id="xUser"></select>
+          </div>
+          <div id="xMonthBox" class="field">
+            <label class="f" for="xMonth">Month</label>
+            <input id="xMonth" type="month">
+          </div>
+          <div id="xRangeBox" class="grid-2" hidden>
+            <div class="field"><label class="f" for="xFrom">From</label><input id="xFrom" type="date"></div>
+            <div class="field"><label class="f" for="xTo">To</label><input id="xTo" type="date"></div>
+          </div>
+          <div class="btn-col">
+            <a class="btn primary" id="btnDownload" href="#">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+              Download CSV
+            </a>
+          </div>
+        </div></div>
+        <div id="xSummary"></div>
+      </div>
+    </section>
+
+    <!-- ================= Settings ================= -->
+    <section class="page" id="page-settings" hidden>
+      <header class="page-head">
+        <div>
+          <h1>Settings</h1>
+          <p>Defaults for new journeys, and backups.</p>
+        </div>
+      </header>
+      <div id="settingsMsg" hidden></div>
+      <div class="export-grid mb16">
+        <form class="panel" id="profileForm" novalidate><div class="panel-body">
+          <h2 class="section-title">My account</h2>
+          <p class="hint mb10" id="meLine"></p>
+          <div class="field">
+            <label class="f" for="meName">Name</label>
+            <input id="meName" type="text" maxlength="80">
+          </div>
+          <div class="field" data-roles="admin user">
+            <label class="f" for="meHome">My home place</label>
+            <select id="meHome" class="place-select" data-empty="— None —"></select>
+            <p class="hint">Used by "Round trip Home"; a leg ending here takes the customer of where it started.</p>
+          </div>
+          <div class="field" data-roles="admin user">
+            <label class="f" for="meRate">My rate (pence per mile)</label>
+            <input id="meRate" type="number" inputmode="decimal" min="1" max="200" step="0.01" placeholder="Company default">
+          </div>
+          <button type="submit" class="btn primary">Save profile</button>
+        </div></form>
+        <form class="panel" id="passwordForm" autocomplete="off" novalidate><div class="panel-body">
+          <h2 class="section-title">Change password</h2>
+          <div class="field">
+            <label class="f" for="pwCurrent">Current password</label>
+            <input id="pwCurrent" type="password" autocomplete="current-password">
+          </div>
+          <div class="field">
+            <label class="f" for="pwNew">New password <span class="hint">(at least 10 characters)</span></label>
+            <input id="pwNew" type="password" autocomplete="new-password">
+          </div>
+          <div class="field">
+            <label class="f" for="pwNew2">Confirm new password</label>
+            <input id="pwNew2" type="password" autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn primary">Change password</button>
+        </div></form>
+      </div>
+      <div class="panel mb16" id="securityPanel"><div class="panel-body">
+        <h2 class="section-title">Sign-in security</h2>
+        <p class="hint mb16">Both are optional. Two-factor adds a code from your phone after your password; a passkey lets you sign in with your fingerprint, face or device PIN instead of a password.</p>
+
+        <div class="sec-row">
+          <div class="sec-text">
+            <b>Two-factor sign-in</b> <span class="badge" id="tfBadge">Off</span>
+            <p class="hint">Uses an authenticator app such as Microsoft Authenticator, Google Authenticator or 1Password.</p>
+          </div>
+          <div class="sec-actions">
+            <button type="button" class="btn" id="btnTfOn">Turn on</button>
+            <button type="button" class="btn" id="btnTfCodes" hidden>New backup codes</button>
+            <button type="button" class="btn danger-outline" id="btnTfOff" hidden>Turn off</button>
+          </div>
+        </div>
+
+        <div class="tf-setup" id="tfSetup" hidden>
+          <div id="tfStepScan">
+            <p><b>1.</b> Scan this QR code with your authenticator app.</p>
+            <div class="qr-wrap"><img id="tfQr" alt="QR code for your authenticator app"></div>
+            <p class="hint">Can't scan it? Enter this key manually: <code id="tfSecret" class="secret"></code></p>
+            <p><b>2.</b> Enter the 6-digit code the app shows.</p>
+            <div class="input-row">
+              <input id="tfCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">
+              <button type="button" class="btn primary" id="btnTfVerify">Verify</button>
+            </div>
+            <button type="button" class="link-plain" id="btnTfCancel">Cancel</button>
+          </div>
+          <div id="tfStepCodes" hidden>
+            <p><b>Save your backup codes.</b> Each one signs you in once if you lose your phone. Keep them somewhere safe (e.g. your password manager). They won't be shown again.</p>
+            <ol class="backup-codes" id="tfCodesList"></ol>
+            <div class="btns-row">
+              <button type="button" class="btn" id="btnTfCopy">Copy codes</button>
+              <button type="button" class="btn primary" id="btnTfDone">I've saved them</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-row">
+          <div class="sec-text">
+            <b>Passkeys</b> <span class="badge" id="pkBadge">None</span>
+            <p class="hint" id="pkHint">Add one on each device you use (phone, laptop).</p>
+          </div>
+          <div class="sec-actions">
+            <button type="button" class="btn" id="btnPkAdd">Add a passkey</button>
+          </div>
+        </div>
+        <ul class="key-list" id="pkList"></ul>
+      </div></div>
+      <div class="export-grid" data-roles="admin">
+        <form class="panel" id="settingsForm" novalidate><div class="panel-body">
+          <h2 class="section-title">Company settings</h2>
+          <div class="field">
+            <label class="f" for="sRate">Company default rate (pence per mile)</label>
+            <input id="sRate" type="number" inputmode="decimal" min="1" max="200" step="0.01">
+          </div>
+          <div class="field">
+            <label class="f" for="sHome">Base places <span class="hint">(shared, comma separated, e.g. Home, Office)</span></label>
+            <input id="sHome" type="text" placeholder="Home,Office">
+            <p class="hint">A leg that ends at one of these (or at the user's own home) takes the customer of the place it started from.</p>
+          </div>
+          <button type="submit" class="btn primary">Save settings</button>
+        </div></form>
+        <div class="stack">
+        <form class="panel" id="googleForm" autocomplete="off" novalidate><div class="panel-body">
+          <h2 class="section-title">Google Maps API key</h2>
+          <p class="key-status" id="gStatus"></p>
+          <div class="field">
+            <label class="f" for="gKey" id="gKeyLabel">API key</label>
+            <input id="gKey" type="password" autocomplete="new-password" spellcheck="false" placeholder="Paste key (AIza…)">
+            <p class="hint">Used only on the server to look up driving distances (Routes API). For security, a saved key can be replaced or removed but never shown.</p>
+          </div>
+          <div class="btns-row">
+            <button type="submit" class="btn primary" id="btnSaveKey">Save key</button>
+            <button type="button" class="btn" id="btnTestKey">Test key</button>
+            <button type="button" class="btn danger-outline" id="btnRemoveKey">Remove</button>
+          </div>
+        </div></form>
+        <form class="panel" id="mapsKeyForm" autocomplete="off" novalidate><div class="panel-body">
+          <h2 class="section-title">Map picker key</h2>
+          <p class="key-status" id="mStatus"></p>
+          <div class="field">
+            <label class="f" for="mKey">Browser key</label>
+            <input id="mKey" type="text" spellcheck="false" placeholder="Paste key (AIza…)">
+            <p class="hint">Shows Google maps in the app: picking a place's location, and the route of a Mileage entry (click a row). Use a <b>separate</b> key from the one above: this one is sent to signed-in browsers. In Google Cloud, enable the <b>Maps JavaScript API</b> and <b>Geocoding API</b> for it, and restrict it to these websites: <span id="mOrigins"></span></p>
+          </div>
+          <div class="btns-row">
+            <button type="submit" class="btn primary" id="btnSaveMapsKey">Save key</button>
+            <button type="button" class="btn danger-outline" id="btnRemoveMapsKey">Remove</button>
+          </div>
+        </div></form>
+        <div class="panel"><div class="panel-body">
+          <h2 class="section-title">Backups</h2>
+          <p class="hint">HMRC requires mileage records to be kept for 6 years. The server makes an automatic backup every year on 6 April. You can also back up at any time.</p>
+          <div class="btn-col">
+            <a class="btn primary" href="/api/backup/download">Download database backup (.db)</a>
+            <button type="button" class="btn" id="btnBackup">Save backup on server now</button>
+          </div>
+        </div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ================= Add journey modal ================= -->
+<div class="modal" id="tripModal" hidden role="dialog" aria-modal="true" aria-labelledby="tripTitle">
+  <div class="modal-card wide">
+    <div class="modal-head">
+      <h2 id="tripTitle">Add journey</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="tripMsg" hidden></div>
+      <form id="tripForm" autocomplete="off" novalidate>
+        <div class="grid-2">
+          <div class="field">
+            <label class="f" for="tDate">Date</label>
+            <input id="tDate" type="date" required>
+            <div class="date-label" id="tDateLabel"></div>
+          </div>
+          <div class="field">
+            <label class="f">Data type</label>
+            <div class="seg">
+              <label><input type="radio" name="tType" value="Live" checked><span>Live</span></label>
+              <label><input type="radio" name="tType" value="Test"><span>Test</span></label>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="section-title">Route</h3>
+        <ol id="stops" class="stops"></ol>
+        <div class="quick">
+          <button type="button" class="btn small" id="addStop">＋ Add stop</button>
+          <button type="button" class="btn small" id="returnStart">↩ Return to start</button>
+          <button type="button" class="btn small" id="roundHome">⌂ Round trip Home</button>
+        </div>
+
+        <h3 class="section-title">Details</h3>
+        <div class="field">
+          <label class="f" for="tReason">Visit reason</label>
+          <input id="tReason" type="text" maxlength="200" value="Site visit">
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label class="f" for="tTicket">Ticket ID <span class="hint">(optional)</span></label>
+            <input id="tTicket" type="text" maxlength="50">
+          </div>
+          <div class="field">
+            <label class="f" for="tRate">Rate (pence/mile)</label>
+            <input id="tRate" type="number" inputmode="decimal" min="1" max="200" step="0.01">
+          </div>
+        </div>
+        <div class="field">
+          <label class="f" for="tCustomer">Customer override <span class="hint">(optional, applies to every leg)</span></label>
+          <select id="tCustomer" class="customer-select" data-empty="Use each site's customer"></select>
+        </div>
+      </form>
+      <div id="preview" class="preview" hidden></div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="button" class="btn primary" id="btnPreview">Preview</button>
+      <button type="button" class="btn ok" id="btnSave" disabled>Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Place modal ================= -->
+<div class="modal" id="placeModal" hidden role="dialog" aria-modal="true" aria-labelledby="placeTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="placeTitle">Add place</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="placeMsg" hidden></div>
+      <form id="placeForm" autocomplete="off" novalidate>
+        <input type="hidden" id="pId">
+        <div class="field">
+          <label class="f" for="pPlace">Place <span class="hint">(short unique name, e.g. "Acme Depot")</span></label>
+          <input id="pPlace" type="text" maxlength="60" required>
+        </div>
+        <div class="field">
+          <label class="f" for="pAddress">Address</label>
+          <input id="pAddress" type="text" maxlength="300">
+        </div>
+        <div class="field">
+          <label class="f" for="pCoords">Paste coordinates <span class="hint">(Google Maps → right-click / long-press the pin → copy "54.83, -3.16")</span></label>
+          <div class="input-row">
+            <input id="pCoords" type="text" inputmode="decimal" placeholder="54.83, -3.16">
+            <button type="button" class="btn" id="btnGps" title="Fill in Lat/Lng from this device's GPS">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>
+              Use my location
+            </button>
+          </div>
+          <p class="hint" id="gpsStatus" hidden></p>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label class="f" for="pLat">Lat</label><input id="pLat" type="text" inputmode="decimal"></div>
+          <div class="field"><label class="f" for="pLng">Lng</label><input id="pLng" type="text" inputmode="decimal"></div>
+        </div>
+        <div class="map-actions">
+          <button type="button" class="btn" id="btnMapPick" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+            Pick on map
+          </button>
+          <div class="date-label map-link" id="pMapLink"></div>
+        </div>
+        <div class="field">
+          <label class="f" for="pCustomer">Customer</label>
+          <select id="pCustomer" class="customer-select" data-empty="— No customer —"></select>
+        </div>
+        <div class="field">
+          <label class="f" for="pNotes">Notes</label>
+          <input id="pNotes" type="text" maxlength="500">
+        </div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn danger-outline" id="btnDeletePlace" hidden>Delete</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="button" class="btn primary" id="btnSavePlace">Save place</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Customer modal ================= -->
+<div class="modal" id="routeModal" hidden role="dialog" aria-modal="true" aria-labelledby="routeTitle">
+  <div class="modal-card wide">
+    <div class="modal-head">
+      <h2 id="routeTitle">Route</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body"><iframe class="map-frame" id="routeFrame" title="Route map"></iframe></div>
+  </div>
+</div>
+<div class="modal" id="mapModal" hidden role="dialog" aria-modal="true" aria-labelledby="mapTitle">
+  <div class="modal-card wide">
+    <div class="modal-head">
+      <h2 id="mapTitle">Pick a location</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body"><iframe class="map-frame" id="mapFrame" title="Map"></iframe></div>
+    <div class="modal-foot">
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="button" class="btn primary" id="btnMapUse" disabled>Use this location</button>
+    </div>
+  </div>
+</div>
+<div class="modal" id="customerModal" hidden role="dialog" aria-modal="true" aria-labelledby="customerTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="customerTitle">Add customer</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="customerMsg" hidden></div>
+      <form id="customerForm" autocomplete="off" novalidate>
+        <input type="hidden" id="cId">
+        <div class="field">
+          <label class="f" for="cName">Customer name</label>
+          <input id="cName" type="text" maxlength="100" required>
+        </div>
+        <div class="field">
+          <label class="f" for="cNotes">Notes</label>
+          <input id="cNotes" type="text" maxlength="500">
+        </div>
+        <h3 class="section-title">Sites</h3>
+        <p class="hint mb10">Tick the sites that belong to this customer. Moving a site from another customer only changes future journeys.</p>
+        <input id="cSiteSearch" type="search" placeholder="Filter sites…" class="mb10">
+        <div class="site-list" id="cSites"></div>
+      </form>
+      <div id="cMergeBox" class="merge-box" hidden>
+        <h3 class="section-title">Merge into another customer</h3>
+        <p class="hint mb10">Moves every site and past journey leg to the chosen customer, then removes this one. Use it to tidy up duplicates.</p>
+        <div class="input-row">
+          <select id="cMergeInto"></select>
+          <button type="button" class="btn" id="btnMerge">Merge</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn danger-outline" id="btnDeleteCustomer" hidden>Delete</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="button" class="btn primary" id="btnSaveCustomer">Save customer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= User modal ================= -->
+<div class="modal" id="userModal" hidden role="dialog" aria-modal="true" aria-labelledby="userTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="userTitle">Add user</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div id="userMsg" hidden></div>
+      <form id="userForm" autocomplete="off" novalidate>
+        <input type="hidden" id="uId">
+        <div class="grid-2">
+          <div class="field">
+            <label class="f" for="uName">Full name</label>
+            <input id="uName" type="text" maxlength="80">
+          </div>
+          <div class="field">
+            <label class="f" for="uUsername">Username <span class="hint">(used to sign in)</span></label>
+            <input id="uUsername" type="text" maxlength="40" autocapitalize="none" spellcheck="false">
+          </div>
+        </div>
+        <div class="field">
+          <label class="f" for="uEmail">Email <span class="hint">(optional; shown in their authenticator app)</span></label>
+          <input id="uEmail" type="email" maxlength="200" autocapitalize="none" spellcheck="false">
+        </div>
+        <div class="field">
+          <label class="f" for="uRole">Role</label>
+          <select id="uRole">
+            <option value="user">User: logs and sees their own journeys</option>
+            <option value="accounts">Accounts: read-only, sees and exports everyone's journeys</option>
+            <option value="admin">Administrator: full access, including users</option>
+          </select>
+        </div>
+        <div class="grid-2" id="uLoggerFields">
+          <div class="field">
+            <label class="f" for="uHome">Home place</label>
+            <select id="uHome" class="place-select" data-empty="— None —"></select>
+          </div>
+          <div class="field">
+            <label class="f" for="uRate">Rate (pence/mile)</label>
+            <input id="uRate" type="number" inputmode="decimal" min="1" max="200" step="0.01" placeholder="Company default">
+          </div>
+        </div>
+        <div class="field">
+          <label class="f" for="uPassword" id="uPasswordLabel">Temporary password</label>
+          <div class="input-row">
+            <input id="uPassword" type="text" autocomplete="off" spellcheck="false">
+            <button type="button" class="btn" id="btnGenPw">Generate</button>
+          </div>
+          <p class="hint" id="uPasswordHint">At least 10 characters. They'll be asked to change it after signing in.</p>
+        </div>
+        <label class="check mb10" id="uActiveRow"><input id="uActive" type="checkbox" checked> Active (can sign in)</label>
+        <label class="check" id="uReset2faRow" hidden><input id="uReset2fa" type="checkbox"> Turn off their two-factor sign-in (if they've lost their phone and backup codes)</label>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn danger-outline" id="btnDeleteUser" hidden>Delete</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="button" class="btn primary" id="btnSaveUser">Save user</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Password confirm modal ================= -->
+<div class="modal" id="pwModal" hidden role="dialog" aria-modal="true" aria-labelledby="pwModalTitle">
+  <div class="modal-card narrow">
+    <div class="modal-head"><h2 id="pwModalTitle">Confirm your password</h2></div>
+    <div class="modal-body">
+      <div id="pwModalMsg" hidden></div>
+      <form id="pwModalForm" novalidate>
+        <p class="hint mb10" id="pwModalText"></p>
+        <label class="f" for="pwModalInput">Password</label>
+        <input id="pwModalInput" type="password" autocomplete="current-password">
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" id="pwModalCancel">Cancel</button>
+      <button type="button" class="btn primary" id="pwModalOk">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Confirm modal ================= -->
+<div class="modal" id="confirmModal" hidden role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="modal-card narrow">
+    <div class="modal-head"><h2 id="confirmTitle">Are you sure?</h2></div>
+    <div class="modal-body"><p id="confirmText" class="pre-line"></p></div>
+    <div class="modal-foot">
+      <button type="button" class="btn" id="confirmNo">Cancel</button>
+      <button type="button" class="btn danger" id="confirmYes">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden role="status"></div>
+<script src="/vendor/simplewebauthn.js"></script>
+<script src="/vendor/qrcode.js"></script>
+<script src="/webauthn.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

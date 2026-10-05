@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pick a location · Waymark</title>
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="picker">
+  <form class="picker-search" id="pickSearch" role="search">
+    <input id="pickQuery" type="search" placeholder="Search an address, postcode or place…" aria-label="Search" autocomplete="off">
+    <button type="submit" class="btn">Search</button>
+  </form>
+  <div class="picker-map" id="pickMap" aria-label="Map. Click to drop a pin."></div>
+  <div class="picker-status" id="pickStatus" aria-live="polite">Loading map…</div>
+  <script src="/map-picker.js"></script>
+</body>
+</html>
