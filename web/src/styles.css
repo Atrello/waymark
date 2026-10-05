@@ -152,7 +152,7 @@ a { color: var(--brand-text); }
 }
 .nav button svg { width: 20px; height: 20px; flex: 0 0 20px; }
 .nav button:hover { background: var(--sidebar-2); color: #fff; }
-.nav button[aria-selected="true"] { background: var(--sidebar-active); color: #fff; }
+.nav button[aria-current="page"] { background: var(--sidebar-active); color: #fff; }
 .side-foot { margin-top: auto; padding: 14px 8px 0; border-top: 1px solid rgba(255, 255, 255, .08); }
 .link-btn { background: none; border: 0; padding: 0; color: var(--sidebar-text); font: inherit; font-size: 13px; cursor: pointer; }
 .link-btn:hover { color: #fff; text-decoration: underline; }
@@ -583,3 +583,4 @@ body.picker { margin: 0; height: 100vh; display: flex; flex-direction: column; b
 .account-grid > .panel > .panel-body { flex: 1 1 auto; display: flex; flex-direction: column; }
 .account-grid > .panel > .panel-body > .btn:last-child { margin-top: auto; align-self: flex-start; }
 @media (max-width: 900px) { .account-grid { grid-template-columns: minmax(0, 1fr); } }
+img.logo { display: block; background: none; } /* the car icon (same as the favicon) */

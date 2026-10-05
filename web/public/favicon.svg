@@ -1,1 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1d4ed8"/><path d="M14 42h36M17 42l3.5-12h23L47 42M21 30l2.5-9h17l2.5 9" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="22" cy="44" r="4" fill="#fff"/><circle cx="42" cy="44" r="4" fill="#fff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#1d4ed8"/>
+  <g transform="translate(32 30.5) scale(1.12) translate(-32 -34)">
+  <!-- Car body, side on, with the wheel arches cut out -->
+  <path fill="#fff" d="M9 41Q8 41 8 40V35.5Q8 32.3 11.2 31.8L18 30.6L24.2 23.6Q26.2 21.5 29.1 21.5H37.8Q40.8 21.5 42.8 23.6L48.8 30.2L53 31Q56 31.7 56 34.8V40Q56 41 55 41H51.5A6.5 6.5 0 0 0 38.5 41H25.5A6.5 6.5 0 0 0 12.5 41Z"/>
+  <!-- Windows -->
+  <path fill="#1d4ed8" d="M20.8 30.2L25.6 24.9Q26.9 23.6 28.8 23.6H31.9V30.2Z"/>
+  <path fill="#1d4ed8" d="M34.1 23.6H37.9Q39.8 23.6 41.1 24.9L45.9 30.2H34.1Z"/>
+  <!-- Wheels -->
+  <circle cx="19" cy="41.5" r="5" fill="#fff"/>
+  <circle cx="45" cy="41.5" r="5" fill="#fff"/>
+  <circle cx="19" cy="41.5" r="1.9" fill="#1d4ed8"/>
+  <circle cx="45" cy="41.5" r="1.9" fill="#1d4ed8"/>
+  </g>
+</svg>

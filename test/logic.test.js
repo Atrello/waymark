@@ -635,3 +635,35 @@ test('scheduled backups: UK-time schedule maths, runs once per slot, keeps the l
   exporter.setSchedule({ frequency: 'off', start: '2026-10-01T02:00', keep: 2 }, day(4));
   assert.equal(await exporter.schedulerTick(day(30)), null);
 });
+
+test('built Svelte app: sign-in page and its bundles are open, everything else needs a sign-in', async () => {
+  const http = require('node:http');
+  const app = require('../server');
+  await app.ready;
+  const srv = app.listen(0);
+  const port = srv.address().port;
+  // Raw request, so paths like /assets/../index.html reach the server exactly as written (fetch would tidy them up).
+  const raw = (p) => new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port, path: p }, (res) => {
+      let body = '';
+      res.on('data', (c) => { body += c; }).on('end', () => resolve({ status: res.statusCode, location: res.headers.location, body }));
+    }).on('error', reject);
+  });
+  try {
+    const login = await raw('/login');
+    assert.equal(login.status, 200);
+    const assets = [...login.body.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
+    assert.ok(assets.length >= 2, 'the sign-in page loads its built script and styles');
+    for (const a of assets) assert.equal((await raw(a)).status, 200, `${a} loads without signing in`);
+    assert.equal((await raw('/theme.js')).status, 200);
+
+    for (const p of ['/', '/index.html', '/map-picker.html', '/route-map.html', '/assets/../index.html', '/assets/%2e%2e/index.html', '/assets/x/../../index.html']) {
+      const r = await raw(p);
+      assert.equal(r.status, 303, `${p} needs a sign-in`);
+      assert.match(r.location, /\/login$/);
+    }
+    assert.equal((await raw('/api/init')).status, 401);
+  } finally {
+    srv.close();
+  }
+});

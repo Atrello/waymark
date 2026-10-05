@@ -3,20 +3,28 @@
   "version": "1.0.0",
   "private": true,
   "description": "Self-hosted personal mileage logger",
-  "main": "server.js",
   "engines": {
     "node": ">=22.13"
   },
   "scripts": {
+    "dev": "node scripts/dev.js",
+    "build": "vite build",
     "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning server.js",
     "backup": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning scripts/backup.js",
+    "pretest": "vite build --logLevel warn",
     "test": "node --disable-warning=ExperimentalWarning --test \"test/*.test.js\""
   },
   "dependencies": {
     "@better-auth/passkey": "^1.7.7",
-    "@simplewebauthn/browser": "^13.3.0",
     "better-auth": "^1.7.7",
-    "express": "^5.2.1",
-    "qrcode-generator": "^2.0.4"
-  }
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@simplewebauthn/browser": "^14.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "qrcode-generator": "^2.0.4",
+    "svelte": "^5.57.1",
+    "vite": "^8.3.2"
+  },
+  "main": "server.js"
 }

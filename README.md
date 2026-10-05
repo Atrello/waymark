@@ -9,7 +9,7 @@ Self-hosted business mileage log. Log journeys, get driving distances from Googl
 - **Users:** Administrator, User and Accounts (read-only) roles; optional two-factor sign-in and passkeys.
 - **Activity log:** permanent, append-only record of every change, export and sign-in.
 
-Node.js + Express + SQLite (one file, `data/waymark.db`). No build step.
+Node.js + Express + SQLite (one file, `data/waymark.db`), with a Svelte 5 front end built by Vite (`web/` → `dist/`).
 
 ## Setup
 
@@ -18,8 +18,11 @@ Needs **Node.js 22.13+**
 ```bash
 npm install
 cp .env.example .env
+npm run build
 npm start
 ```
+
+While working on the code, `npm run dev` runs the server and Vite's live-reloading dev server together; open the address Vite prints.
 
 Set these in `.env`:
 

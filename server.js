@@ -170,14 +170,16 @@ app.all('/api/auth/{*rest}', async (req, res, next) => {
 app.use(express.json({ limit: '100kb' }));
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 
-const PUBLIC = path.join(__dirname, 'public');
-const OPEN_FILES = new Set(['/login.html', '/login.js', '/theme.js', '/styles.css', '/favicon.svg', '/webauthn.js']);
-const VENDOR = {
-  '/vendor/simplewebauthn.js': path.join(__dirname, 'node_modules/@simplewebauthn/browser/dist/bundle/index.umd.min.js'),
-  '/vendor/qrcode.js': path.join(__dirname, 'node_modules/qrcode-generator/dist/qrcode.js'),
-};
-for (const [route, file] of Object.entries(VENDOR)) {
-  app.get(route, (req, res) => res.type('application/javascript').sendFile(file));
+/*
+ * The browser app is built by Vite (web/ -> dist/, `npm run build`). The sign-in page and the built script/style
+ * bundles under /assets/ are served to anyone (they hold no data); every other page needs a signed-in user.
+ */
+const PUBLIC = path.join(__dirname, 'dist');
+const OPEN_FILES = new Set(['/login.html', '/theme.js', '/favicon.svg']);
+// Plain file names directly in /assets/ only (no '..', slashes or %-encoding), so nothing can slip past the sign-in check.
+const isOpen = (p) => OPEN_FILES.has(p) || (/^\/assets\/[\w.-]+$/.test(p) && !p.includes('..'));
+if (!fs.existsSync(path.join(PUBLIC, 'index.html'))) {
+  console.warn('The browser app has not been built yet: run `npm run build` (or `npm run dev` while developing).');
 }
 
 async function sessionOf(req) {
@@ -229,7 +231,7 @@ app.post('/api/setup', async (req, res) => {
 
 // Everything below needs a signed-in, active user (req.user).
 app.use(async (req, res, next) => {
-  if (OPEN_FILES.has(req.path)) return next();
+  if (isOpen(req.path)) return next();
   try {
     req.user = users.fromSession(await sessionOf(req));
   } catch (e) {
