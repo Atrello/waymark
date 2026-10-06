@@ -45,7 +45,7 @@
     try {
       const r = await api('GET', `/api/activity?${params}`);
       if (mine !== ticket) return;
-      rows = older ? rows.concat(r.rows) : r.rows;
+      rows = older && rows ? rows.concat(r.rows) : r.rows;
       more = r.more;
       error = '';
     } catch (e) { if (mine === ticket) error = e.message; }
@@ -103,7 +103,7 @@
     </div>
     <div class="table-foot">
       <span>{rows ? `Showing ${rows.length}${more ? '+' : ''} entries, newest first` : ''}</span>
-      {#if more}<button type="button" class="btn small" onclick={() => load(true)}>Show older</button>{/if}
+      {#if more && rows}<button type="button" class="btn small" onclick={() => load(true)}>Show older</button>{/if}
     </div>
   </div>
 </section>

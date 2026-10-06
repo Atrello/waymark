@@ -28,9 +28,12 @@
   let gps = $state(null);       // { text, kind }
   let locating = $state(false);
   let saving = $state(false);
+  let gpsTicket = 0; // a GPS fix that arrives after the dialog was closed or reopened is ignored
 
   function openEditor(p) {
     editing = p || {};
+    gpsTicket++;
+    locating = false;
     untrack(() => {
       f = {
         place: p ? p.place : '', address: p ? p.address : '', coords: '',
@@ -41,7 +44,7 @@
       gps = null;
     });
   }
-  const close = () => { editing = null; };
+  const close = () => { editing = null; gpsTicket++; locating = false; };
 
   const coordsBad = $derived(!!f.coords.trim() && !COORD_RE.test(f.coords));
   function onCoords() {
@@ -60,7 +63,9 @@
     if (!navigator.geolocation) { gps = { text: 'This browser does not support location.', kind: 'bad' }; return; }
     locating = true;
     gps = { text: 'Getting a GPS fix… stand outside or near a window for best accuracy.', kind: '' };
+    const mine = ++gpsTicket;
     navigator.geolocation.getCurrentPosition((pos) => {
+      if (mine !== gpsTicket) return;
       locating = false;
       const acc = Math.round(pos.coords.accuracy);
       f.lat = pos.coords.latitude.toFixed(6);
@@ -70,6 +75,7 @@
         ? { text: `Location filled in, but accuracy is poor (±${acc} m). Try again outdoors, or check it on the map.`, kind: 'warn' }
         : { text: `Location filled in (±${acc} m). Check it on the map, then save.`, kind: 'ok' };
     }, (err) => {
+      if (mine !== gpsTicket) return;
       locating = false;
       gps = { kind: 'bad', text: {
         1: 'Location permission was denied. Allow location for this site in your browser settings, then try again.',

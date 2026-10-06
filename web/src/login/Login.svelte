@@ -3,7 +3,6 @@
    * On a brand-new install (no accounts yet) it offers to create the administrator account instead. */
   import { onMount, tick } from 'svelte';
   import { authCall, passkeysSupported, signInWithPasskey } from '../lib/api.js';
-  import { busy } from '../lib/ui.svelte.js';
 
   let mode = $state('password'); // 'setup' | 'password' | 'totp' | 'backup'
   let error = $state('');
@@ -20,6 +19,12 @@
   const passkeys = passkeysSupported();
 
   const done = () => location.replace('/');
+
+  /** Run a step with the buttons disabled. On success they stay disabled while the page moves on. */
+  async function step(fn) {
+    working = true;
+    try { return await fn(); } catch (e) { working = false; throw e; }
+  }
 
   async function setMode(m) {
     mode = m;
@@ -43,13 +48,14 @@
     if (!s.username || !s.email || !s.password) throw new Error('Enter a username, email and password.');
     if (s.password.length < 10) throw new Error('Password must be at least 10 characters.');
     if (s.password !== s.confirm) throw new Error("The passwords don't match.");
-    const res = await busy((b) => (working = b), () => fetch('/api/setup', {
+    const res = await step(() => fetch('/api/setup', {
       method: 'POST', credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'waymark' },
       body: JSON.stringify({ username: s.username, email: s.email, password: s.password }),
     }));
     const j = await res.json().catch(() => ({}));
     if (!res.ok) {
+      working = false;
       if (/already been set up/.test(j.error || '')) setMode('password'); // someone else got there first
       throw new Error(j.error || 'Could not create the account.');
     }
@@ -58,8 +64,8 @@
 
   async function signIn() {
     if (!username.trim() || !password) throw new Error('Enter your username and password.');
-    const r = await busy((b) => (working = b), () => authCall('POST', '/sign-in/username', { username: username.trim(), password, rememberMe: true }));
-    if (r && r.twoFactorRedirect) { setMode('totp'); return; }
+    const r = await step(() => authCall('POST', '/sign-in/username', { username: username.trim(), password, rememberMe: true }));
+    if (r && r.twoFactorRedirect) { working = false; setMode('totp'); return; }
     done();
   }
 
@@ -67,7 +73,7 @@
     const c = code.replace(/\s+/g, '');
     if (!c) throw new Error('Enter the code.');
     try {
-      await busy((b) => (working = b), () => authCall('POST', mode === 'totp' ? '/two-factor/verify-totp' : '/two-factor/verify-backup-code', { code: c, trustDevice }));
+      await step(() => authCall('POST', mode === 'totp' ? '/two-factor/verify-totp' : '/two-factor/verify-backup-code', { code: c, trustDevice }));
       done();
     } catch (err) {
       if (err.status === 401 && /two.?factor|session/i.test(err.message) && !/code/i.test(err.message)) {
@@ -88,7 +94,7 @@
 
   async function passkey() {
     error = '';
-    try { await busy((b) => (working = b), signInWithPasskey); done(); } catch (err) { error = err.message; }
+    try { await step(signInWithPasskey); done(); } catch (err) { error = err.message; }
   }
 
   onMount(async () => {

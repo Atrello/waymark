@@ -7,14 +7,14 @@
   let msg = $state(null);
   const ok = (text) => { msg = { text, kind: 'ok' }; };
   const bad = (e) => { msg = { text: e.message || e, kind: 'bad' }; };
-  let working = $state(''); // which button is busy
+  let working = $state({}); // which button is busy
 
   /* ---- Company settings ---- */
   let rate = $state(app.settings.ratePence);
   async function saveSettings(e) {
     e.preventDefault();
     try {
-      const r = await busy((b) => (working = b ? 'settings' : ''), () => api('PUT', '/api/settings', { ratePence: Number(rate) }));
+      const r = await busy((b) => (working.settings = b), () => api('PUT', '/api/settings', { ratePence: Number(rate) }));
       app.settings = r.settings;
       rate = r.settings.ratePence;
       ok(r.message);
@@ -28,7 +28,7 @@
     e.preventDefault();
     if (!gKey.trim()) { msg = { text: 'Paste a key first.', kind: 'warn' }; return; }
     try {
-      const r = await busy((b) => (working = b ? 'gsave' : ''), () => api('PUT', '/api/settings/google-key', { key: gKey.trim() }));
+      const r = await busy((b) => (working.gsave = b), () => api('PUT', '/api/settings/google-key', { key: gKey.trim() }));
       gKey = '';
       app.google = r.google;
       ok(`${r.message} Click "Test key" to check it works.`);
@@ -36,7 +36,7 @@
   }
   async function testGoogle() {
     msg = null;
-    try { ok((await busy((b) => (working = b ? 'gtest' : ''), () => api('POST', '/api/settings/google-key/test'))).message); } catch (err) { bad(err); }
+    try { ok((await busy((b) => (working.gtest = b), () => api('POST', '/api/settings/google-key/test'))).message); } catch (err) { bad(err); }
   }
   async function removeGoogle() {
     if (!(await confirmBox('Remove Google API key?', 'New distances will not be looked up until a key is added again.\nCached distances keep working.', 'Remove'))) return;
@@ -54,7 +54,7 @@
     e.preventDefault();
     if (!mKey.trim()) { msg = { text: 'Paste a key first.', kind: 'warn' }; return; }
     try {
-      const r = await busy((b) => (working = b ? 'msave' : ''), () => api('PUT', '/api/settings/maps-browser-key', { key: mKey.trim() }));
+      const r = await busy((b) => (working.msave = b), () => api('PUT', '/api/settings/maps-browser-key', { key: mKey.trim() }));
       mKey = '';
       app.mapsPicker = r.mapsPicker;
       ok(`${r.message} Open a place and click "Pick on map" to check it works.`);
@@ -78,23 +78,23 @@
   api('GET', '/api/settings/backup-schedule').then((r) => applySchedule(r.backup)).catch(bad);
 
   function onFreq() { if (freq === 'hourly' && Number(keep) === 0) keep = 48; } // two days of hourly copies
-  const when = (iso) => (iso ? new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: '2-digit', month: '2-digit',
-    year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(/,/g, '') : '');
+  const when = (iso) => (iso ? new Date(iso).toLocaleString('en-GB', { timeZone: 'Europe/London', weekday: 'short', day: '2-digit',
+    month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(/,/g, '') : ''); // UK time, like "Next backup"
 
   async function saveSchedule(e) {
     e.preventDefault();
     try {
-      const r = await busy((b) => (working = b ? 'schedule' : ''), () => api('PUT', '/api/settings/backup-schedule', { frequency: freq, start, keep }));
+      const r = await busy((b) => (working.schedule = b), () => api('PUT', '/api/settings/backup-schedule', { frequency: freq, start, keep }));
       applySchedule(r.backup);
       ok(r.message);
     } catch (err) { bad(err); }
   }
   async function backupNow() {
-    try { ok((await busy((b) => (working = b ? 'backup' : ''), () => api('POST', '/api/backup'))).message); } catch (err) { bad(err); }
+    try { ok((await busy((b) => (working.backup = b), () => api('POST', '/api/backup'))).message); } catch (err) { bad(err); }
   }
 </script>
 
-{#snippet spin(name, label)}{#if working === name}<span class="spinner"></span>{:else}{label}{/if}{/snippet}
+{#snippet spin(name, label)}{#if working[name]}<span class="spinner"></span>{:else}{label}{/if}{/snippet}
 
 <section class="page">
   <header class="page-head">
@@ -110,9 +110,9 @@
       <div class="field">
         <label class="f" for="sRate">Mileage rate (pence per mile)</label>
         <input id="sRate" type="number" inputmode="decimal" min="1" max="200" step="0.01" bind:value={rate}>
-        <p class="hint">Every journey is claimed at this rate. Journeys already saved keep the rate they were claimed at.</p>
+        <p class="hint">1 to 200 pence, up to 2 decimal places. Every journey is claimed at this rate. Journeys already saved keep the rate they were claimed at.</p>
       </div>
-      <button type="submit" class="btn primary" disabled={working === 'settings'}>{@render spin('settings', 'Save settings')}</button>
+      <button type="submit" class="btn primary" disabled={working.settings}>{@render spin('settings', 'Save settings')}</button>
     </div></form>
 
     <div class="stack">
@@ -129,8 +129,8 @@
           <p class="hint">Used only on the server to look up driving distances (Routes API). For security, a saved key can be replaced or removed but never shown.</p>
         </div>
         <div class="btns-row">
-          <button type="submit" class="btn primary" disabled={working === 'gsave'}>{@render spin('gsave', 'Save key')}</button>
-          <button type="button" class="btn" disabled={!g.configured || working === 'gtest'} onclick={testGoogle}>{@render spin('gtest', 'Test key')}</button>
+          <button type="submit" class="btn primary" disabled={working.gsave}>{@render spin('gsave', 'Save key')}</button>
+          <button type="button" class="btn" disabled={!g.configured || working.gtest} onclick={testGoogle}>{@render spin('gtest', 'Test key')}</button>
           {#if g.source === 'app'}<button type="button" class="btn danger-outline" onclick={removeGoogle}>Remove</button>{/if}
         </div>
       </div></form>
@@ -146,7 +146,7 @@
           <p class="hint">Shows Google maps in the app: picking a place's location, and the route of a Mileage entry (click a row). Use a <b>separate</b> key from the one above: this one is sent to signed-in browsers. In Google Cloud, enable the <b>Maps JavaScript API</b> and <b>Geocoding API</b> for it, and restrict it to these websites: {location.origin}/*</p>
         </div>
         <div class="btns-row">
-          <button type="submit" class="btn primary" disabled={working === 'msave'}>{@render spin('msave', 'Save key')}</button>
+          <button type="submit" class="btn primary" disabled={working.msave}>{@render spin('msave', 'Save key')}</button>
           {#if m.source === 'app'}<button type="button" class="btn danger-outline" onclick={removeMaps}>Remove</button>{/if}
         </div>
       </div></form>
@@ -189,12 +189,12 @@
               {#if backup.lastRun}Last scheduled backup: {when(backup.lastRun)}{backup.lastFile ? ` (${backup.lastFile})` : ''}.{/if}
             </p>
           {/if}
-          <button type="submit" class="btn primary mb16" disabled={working === 'schedule'}>{@render spin('schedule', 'Save schedule')}</button>
+          <button type="submit" class="btn primary mb16" disabled={working.schedule}>{@render spin('schedule', 'Save schedule')}</button>
         </form>
         <p class="hint">Back up by hand at any time. Keep copies somewhere off this machine: HMRC requires 6 years of records.</p>
         <div class="btn-col">
           <a class="btn primary" href="/api/backup/download">Download database backup (.db)</a>
-          <button type="button" class="btn" disabled={working === 'backup'} onclick={backupNow}>{@render spin('backup', 'Save backup on server now')}</button>
+          <button type="button" class="btn" disabled={working.backup} onclick={backupNow}>{@render spin('backup', 'Save backup on server now')}</button>
         </div>
       </div></div>
     </div>

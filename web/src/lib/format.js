@@ -15,11 +15,27 @@ export function ukLong(iso) {
   return `${new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('en-GB', { weekday: 'long' })} ${uk(iso)}`;
 }
 
-/** ISO timestamp -> '05/10/2026 19:30' in local time. */
+/* UK time (Europe/London), whatever time zone the browser is in: the server works in UK time too. */
+const LONDON = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
+function londonParts(d) {
+  return Object.fromEntries(LONDON.formatToParts(d).map((x) => [x.type, x.value]));
+}
+
+/** ISO timestamp (or Date) -> its UK date, '2026-10-05'. */
+export function londonDate(iso = new Date()) {
+  const p = londonParts(new Date(iso));
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+/** Today's date in the UK, '2026-10-05'. */
+export const londonToday = () => londonDate(new Date());
+
+/** ISO timestamp -> '05/10/2026 19:30' in UK time. */
 export function ukDateTime(iso) {
-  const d = new Date(iso);
-  const p = (n) => String(n).padStart(2, '0');
-  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  const p = londonParts(new Date(iso));
+  return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
 }
 
 /** '2026-01-15' -> '2025-12' */

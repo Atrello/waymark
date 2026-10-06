@@ -513,7 +513,7 @@ input:disabled { opacity: .6; cursor: not-allowed; }
   .users .c-uname { grid-area: name; } .users .c-ustatus { grid-area: status; }
   .users .c-ulogin { grid-area: login; color: var(--muted); font-size: 13px; } .users .c-urole { grid-area: role; }
   .users .c-ulegs { grid-area: legs; text-align: left; font-size: 13px; color: var(--muted); } .users .c-ulegs::after { content: " legs"; }
-  .users .c-ulast { grid-area: last; font-size: 13px; color: var(--muted); } .users .c-uhome { display: none; }
+  .users .c-ulast { grid-area: last; font-size: 13px; color: var(--muted); }
 }
 
 /* ---------- Sign-in security (2FA + passkeys) ---------- */

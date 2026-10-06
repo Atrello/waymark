@@ -3,7 +3,7 @@
   import { api } from '../lib/api.js';
   import { app, setUsers } from '../lib/app.svelte.js';
   import { toast, confirmBox, busy } from '../lib/ui.svelte.js';
-  import { uk, randomPassword } from '../lib/format.js';
+  import { uk, londonDate, randomPassword } from '../lib/format.js';
   import Modal from '../components/Modal.svelte';
   import Msg from '../components/Msg.svelte';
 
@@ -36,12 +36,16 @@
   function updated(r) {
     users = r.users;
     setUsers(r.users);
+    // Editing your own record changes the name shown in the sidebar too.
+    const mine = r.users.find((u) => u.id === app.me.id);
+    if (mine) app.me = { ...app.me, ...mine };
     close();
     toast(r.message);
   }
 
   async function save() {
     const id = editing.id;
+    const username = id ? editing.username : f.username.trim(); // read now: the dialog closes once saved
     const body = {
       name: f.name.trim(), role: f.role, password: f.password,
       active: f.active, email: f.email.trim(), resetTwoFactor: f.resetTwoFactor,
@@ -51,7 +55,7 @@
       const r = await busy((b) => (saving = b), () => api(id ? 'PUT' : 'POST', id ? `/api/users/${id}` : '/api/users', body));
       updated(r);
       if (body.password) {
-        app.notice = { text: `Password for ${body.username || editing.username}: ${body.password}\nCopy it now; it will not be shown again.`, kind: 'info' };
+        app.notice = { text: `Password for ${username}: ${body.password}\nCopy it now; it will not be shown again.`, kind: 'info' };
       }
     } catch (e) { msg = { text: e.message, kind: 'bad' }; }
   }
@@ -97,7 +101,7 @@
                   {#if u.passkeys}<span class="badge role-accounts">{u.passkeys} passkey{u.passkeys === 1 ? '' : 's'}</span>{/if}
                   {#if !u.twoFactorEnabled && !u.passkeys}<span class="muted">Password only</span>{/if}
                 </td>
-                <td class="c-ulast nowrap">{u.lastLogin ? uk(u.lastLogin.slice(0, 10)) : 'never'}</td>
+                <td class="c-ulast nowrap">{u.lastLogin ? uk(londonDate(u.lastLogin)) : 'never'}</td>
                 <td class="c-ustatus">
                   {#if !u.active}<span class="badge inactive">Inactive</span>
                   {:else if u.mustChangePassword}<span class="badge test">Temp password</span>

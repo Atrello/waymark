@@ -143,18 +143,23 @@ app.all('/api/auth/{*rest}', async (req, res, next) => {
   }
   // Who is already signed in (verifying a code while signed in means turning two-factor on, not signing in).
   const before = SECURITY_EVENTS[sub] || sub === '/two-factor/verify-totp' ? users.fromSession(await sessionOf(req)) : null;
+  const loginStep = LOGIN_STEPS.has(sub) && !before;
+  // Count every sign-in attempt before it runs, so many sent at once can't all slip past the limit.
+  // Only a completed sign-in clears the count.
+  if (loginStep) noteFailure(req.ip);
   const note = {}; // filled in by the hooks in lib/auth.js
   res.on('finish', () => {
     const ok = res.statusCode < 300;
-    if (LOGIN_STEPS.has(sub) && !before) {
-      if (res.statusCode === 401 || res.statusCode === 403) {
-        noteFailure(req.ip);
+    if (loginStep) {
+      // The password step for someone with two-factor on answers 200 but deletes the session it made (the code
+      // comes next), so only a session that still exists counts as signed in.
+      if (ok && users.sessionExists(note.sessionToken)) {
+        failures.delete(req.ip);
+        const u = users.find(note.sessionUserId);
+        if (u) audit.record(u, 'auth.sign_in', `Signed in (${LOGIN_STEPS.get(sub)})`, req.ip);
+      } else if (res.statusCode >= 400 && res.statusCode < 500) {
         audit.record(null, 'auth.sign_in_failed',
           `Failed sign-in (${LOGIN_STEPS.get(sub)})${note.username ? ` as "${note.username}"` : ''}`, req.ip);
-      } else if (ok) {
-        failures.delete(req.ip);
-        const u = note.sessionUserId ? users.list().find((x) => x.id === note.sessionUserId) : null;
-        if (u) audit.record(u, 'auth.sign_in', `Signed in (${LOGIN_STEPS.get(sub)})`, req.ip);
       }
     } else if (ok && before && sub === '/two-factor/verify-totp') {
       audit.record(before, 'security.2fa_on', 'Turned on two-factor sign-in', req.ip);
@@ -182,10 +187,16 @@ if (!fs.existsSync(path.join(PUBLIC, 'index.html'))) {
   console.warn('The browser app has not been built yet: run `npm run build` (or `npm run dev` while developing).');
 }
 
-async function sessionOf(req) {
+/**
+ * The Better Auth session for a request, or null. With res: also pass on the refreshed session cookie Better Auth
+ * sets once a day (session.updateAge), so people who keep using the app stay signed in.
+ */
+async function sessionOf(req, res) {
   await ready;
   try {
-    return await authLib.get().api.getSession({ headers: fromNodeHeaders(req.headers) });
+    const r = await authLib.get().api.getSession({ headers: fromNodeHeaders(req.headers), returnHeaders: true });
+    if (res && r.headers) for (const c of r.headers.getSetCookie()) res.append('Set-Cookie', c);
+    return r.response;
   } catch {
     return null;
   }
@@ -224,22 +235,30 @@ app.post('/api/setup', async (req, res) => {
   const r = await authLib.get().api.signInUsername({
     body: { username: u.username, password: String(b.password), rememberMe: true }, headers: fromNodeHeaders(req.headers), asResponse: true,
   });
+  if (!r.ok) return res.status(500).json({ error: 'The administrator account was created, but signing in failed. Sign in with it now.' });
   forwardCookies(r, res);
   audit.record(u, 'auth.sign_in', 'Signed in (password, first-run setup)', req.ip);
   res.json({ ok: true });
 });
 
 // Everything below needs a signed-in, active user (req.user).
+// With a temporary password, the API only lets you load the app and change the password.
+const TEMP_PASSWORD_OK = new Set(['GET /api/init', 'GET /api/me', 'PUT /api/me/password']);
 app.use(async (req, res, next) => {
   if (isOpen(req.path)) return next();
   try {
-    req.user = users.fromSession(await sessionOf(req));
+    req.user = users.fromSession(await sessionOf(req, res));
   } catch (e) {
     return next(e);
   }
-  if (req.user) return next();
-  if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not logged in.' });
-  res.redirect(303, '/login');
+  if (!req.user) {
+    if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not logged in.' });
+    return res.redirect(303, '/login');
+  }
+  if (req.user.mustChangePassword && req.path.startsWith('/api/') && !TEMP_PASSWORD_OK.has(`${req.method} ${req.path}`)) {
+    return res.status(403).json({ error: 'Change your temporary password first (Account page).' });
+  }
+  next();
 });
 
 // CSRF for the app's own API (same rule as above).
@@ -259,6 +278,8 @@ const ADMIN = allow('admin');
 const LOGGERS = allow('admin', 'user'); // people who log journeys
 const viewsAll = (u) => u.role === 'admin' || u.role === 'accounts';
 const userDirectory = () => users.list().map((u) => ({ id: u.id, name: u.name, username: u.username, role: u.role, active: u.active }));
+/** Customers with journey totals: the User role sees totals of their own journeys only. */
+const customersFor = (u) => customers.list(viewsAll(u) ? null : u.id);
 const headersOf = (req) => fromNodeHeaders(req.headers);
 
 /* ---- Activity log helpers ---- */
@@ -278,11 +299,6 @@ const sitesOf = (customerId) => db.listPlaces().filter((p) => p.customerId === N
 const money = (n) => `£${Number(n).toFixed(2)}`;
 const miles = (n) => `${Number(n).toFixed(1)} mi`;
 
-/** What the browser gets about the signed-in user. ratePence: the company rate their journeys are claimed at. */
-function meView(u) {
-  return { ...u, ratePence: users.rateFor() };
-}
-
 function globalSettings() {
   const s = db.getSettings();
   return { ratePence: s.ratePence };
@@ -291,10 +307,10 @@ function globalSettings() {
 api.get('/init', (req, res) => {
   const me = req.user;
   res.json({
-    me: meView(me),
+    me: users.get(me.id),
     users: viewsAll(me) ? userDirectory() : [],
     places: db.listPlaces(),
-    customers: customers.list(),
+    customers: customersFor(me),
     settings: globalSettings(),
     today: todayIso(),
     google: me.role === 'admin' ? googleKey.status() : { configured: googleKey.status().configured },
@@ -303,13 +319,12 @@ api.get('/init', (req, res) => {
 });
 
 /* ---- My account ---- */
-api.get('/me', (req, res) => res.json({ me: meView(users.get(req.user.id)) }));
+api.get('/me', (req, res) => res.json({ me: users.get(req.user.id) }));
 api.put('/me', (req, res) => {
   const before = users.get(req.user.id);
   const r = users.updateProfile(req.user, req.body);
   const diff = changes([['Name', before.name, r.me.name], ['Email', before.email, r.me.email]]);
   if (diff) note(req, 'account.profile', `Updated own profile: ${diff}`);
-  r.me = meView(r.me);
   res.json(r);
 });
 // The two-factor suggestion shown after first-run setup: 'Skip for now' turns it off.
@@ -417,7 +432,7 @@ api.post('/trips', LOGGERS, async (req, res) => {
 });
 
 /* ---- Customers (everyone can read; admin manages) ---- */
-api.get('/customers', (req, res) => res.json({ customers: customers.list() }));
+api.get('/customers', (req, res) => res.json({ customers: customersFor(req.user) }));
 api.post('/customers', ADMIN, (req, res) => {
   const r = customers.create(req.body);
   const c = r.customers.find((x) => x.name.toLowerCase() === String(req.body.name).trim().replace(/\s+/g, ' ').toLowerCase());
@@ -458,6 +473,7 @@ api.post('/places', LOGGERS, (req, res) => {
     note(req, 'place.create', `Added place "${p.place}": ${coords(p) || 'no coordinates'}${p.business ? `, customer ${p.business}` : ''}` +
       `${p.address ? `, ${p.address}` : ''}`);
   }
+  r.customers = customersFor(req.user);
   res.json(r);
 });
 api.put('/places/:id', LOGGERS, (req, res) => {
@@ -467,6 +483,7 @@ api.put('/places/:id', LOGGERS, (req, res) => {
   const diff = changes([['Name', before.place, after.place], ['Address', before.address, after.address],
     ['Coordinates', coords(before), coords(after)], ['Customer', before.business, after.business], ['Notes', before.notes, after.notes]]);
   if (diff) note(req, 'place.update', `Updated place "${before.place}": ${diff}`);
+  r.customers = customersFor(req.user);
   res.json(r);
 });
 api.delete('/places/:id', ADMIN, (req, res) => {
@@ -494,7 +511,10 @@ api.get('/export/csv', (req, res) => {
 api.put('/settings', ADMIN, (req, res) => {
   const b = req.body || {};
   const rate = Number(b.ratePence);
-  if (!(rate > 0 && rate <= 200)) throw new UserError('The rate must be between 1 and 200 pence.');
+  // 1–200 pence with at most 2 decimal places (e.g. 45 or 42.5), so the rate shown always matches the claims.
+  if (!(rate >= 1 && rate <= 200) || Math.abs(Math.round(rate * 100) - rate * 100) > 1e-6) {
+    throw new UserError('The rate must be between 1 and 200 pence per mile, with at most 2 decimal places.');
+  }
   const before = globalSettings();
   db.setSetting('RatePence', String(rate));
   const after = globalSettings();

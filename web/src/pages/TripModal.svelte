@@ -26,10 +26,12 @@
   let suggestFor = $state(-1);      // index of the stop whose suggestion list is open
   let active = $state(0);           // highlighted suggestion
   let previewEl = $state();
+  let previewTicket = 0;            // a preview that comes back after the form was reset is ignored
 
   // Reset the form each time it opens (untracked: only `open` should re-run this, not app data changing meanwhile).
   $effect(() => { if (open) untrack(reset); });
   function reset() {
+    previewTicket++;
     date = app.today;
     dataType = 'Live';
     reason = 'Site visit';
@@ -43,8 +45,9 @@
     tick().then(() => { if (inputs[0] && window.matchMedia('(min-width: 701px)').matches) inputs[0].focus(); });
   }
 
+  // Stops are sent with their saved spelling, so tidying a typed name on blur doesn't make the preview stale.
   const payload = $derived({
-    date, stops: stops.map((s) => s.trim()), reason: reason.trim(), ticket: ticket.trim(), customerId,
+    date, stops: stops.map((s) => placeByName(s)?.place ?? s.trim()), reason: reason.trim(), ticket: ticket.trim(), customerId,
     dataType, // no rate: journeys are always claimed at the company rate set in Settings
   });
   const fresh = $derived(previewKey !== null && JSON.stringify(payload) === previewKey);
@@ -129,14 +132,17 @@
     const err = clientCheck(p);
     if (err) { msg = { text: err, kind: 'bad' }; return; }
     previewKey = null;
+    const mine = ++previewTicket;
     try {
       const r = await busy((b) => (previewing = b), () => api('POST', '/api/trips/preview', p));
+      if (mine !== previewTicket) return;
       preview = r;
       previewKey = JSON.stringify(p);
       submissionId = randomId();
       await tick();
       previewEl?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (e) {
+      if (mine !== previewTicket) return;
       preview = null;
       msg = { text: e.message, kind: 'bad' };
     }
@@ -147,7 +153,8 @@
     if (JSON.stringify(p) !== previewKey) { msg = { text: 'Preview again before saving.', kind: 'warn' }; return; }
     msg = null;
     try {
-      const r = await busy((b) => (saving = b), () => api('POST', '/api/trips', { ...p, submissionId }));
+      // expectedRatePence: the server refuses the save if the company rate changed since this preview.
+      const r = await busy((b) => (saving = b), () => api('POST', '/api/trips', { ...p, submissionId, expectedRatePence: preview.ratePence }));
       open = false;
       toast(r.message);
       onsaved?.(p.date);

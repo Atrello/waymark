@@ -1,7 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import { api } from './lib/api.js';
-  import { app, ROLE_LABELS, pageAllowed, showPage, loadLog, setUsers } from './lib/app.svelte.js';
+  import { app, pageAllowed, showPage, loadLog, setUsers } from './lib/app.svelte.js';
+  import { londonToday } from './lib/format.js';
   import { toast } from './lib/ui.svelte.js';
   import Modal from './components/Modal.svelte';
   import Dialogs from './components/Dialogs.svelte';
@@ -53,6 +54,12 @@
     app.startTwoFactor = true;
   }
 
+  // Keep "today" current in a tab left open past midnight (UK time), so today's journeys can still be logged.
+  onMount(() => {
+    const t = setInterval(() => { const d = londonToday(); if (d > app.today) app.today = d; }, 60 * 1000);
+    return () => clearInterval(t);
+  });
+
   onMount(async () => {
     try {
       const d = await api('GET', '/api/init');
@@ -95,7 +102,7 @@
       <button type="button" class="whoami" class:active={app.page === 'account'} aria-current={app.page === 'account' ? 'page' : undefined}
         title="Your account: profile, password and sign-in security" aria-label="Your account ({app.me.name})" onclick={() => showPage('account')}>
         <span class="avatar" aria-hidden="true">{initials}</span>
-        <span class="who-text"><b>{app.me.name}</b><small>{ROLE_LABELS[app.me.role]} · Account</small></span>
+        <span class="who-text"><b>{app.me.name}</b><small>{app.me.roleLabel} · Account</small></span>
       </button>
     {/if}
     <form class="side-foot" method="post" action="/logout">

@@ -25,6 +25,9 @@ function friendly(status, msg) {
   if (/banned/i.test(msg || '')) return 'This account has been deactivated. Ask an administrator.';
   if (/invalid code|invalid backup code/i.test(msg || '')) return 'That code is not right. Try again.';
   if (/invalid password/i.test(msg || '')) return 'Password is wrong.';
+  if (/session is not fresh/i.test(msg || '')) {
+    return 'For security, sign out and sign back in, then add the passkey (within a day of signing in).';
+  }
   return msg || `Request failed (${status})`;
 }
 
@@ -69,9 +72,10 @@ export async function signInWithPasskey() {
   return authCall('POST', '/passkey/verify-authentication', { response: strip(resp) });
 }
 
+/** name: a label for this device's passkey. Not sent with the options request: there it would replace the account
+ *  name the device shows in its passkey list. */
 export async function registerPasskey(name) {
-  const q = name ? `?name=${encodeURIComponent(name)}` : '';
-  const optionsJSON = await authCall('GET', `/passkey/generate-register-options${q}`);
+  const optionsJSON = await authCall('GET', '/passkey/generate-register-options');
   let resp;
   try { resp = await startRegistration({ optionsJSON }); } catch (e) { throw new Error(webauthnMessage(e)); }
   return authCall('POST', '/passkey/verify-registration', { response: strip(resp), name: name || undefined });

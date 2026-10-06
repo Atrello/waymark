@@ -19,15 +19,21 @@
   });
 
   function onkeydown(e) {
-    if (open && e.key === 'Escape' && isTopModal(id)) { e.preventDefault(); close(); }
+    // defaultPrevented: the dialog above already closed on this keypress, so this one stays open.
+    if (open && e.key === 'Escape' && !e.defaultPrevented && isTopModal(id)) { e.preventDefault(); close(); }
   }
+
+  // Close on a backdrop click only when the press started on the backdrop too: selecting text in the dialog
+  // and letting go outside it must not close it.
+  let downOnBackdrop = false;
 </script>
 
 <svelte:window {onkeydown} />
 
 {#if open}
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="modal" {id} {role} aria-modal="true" aria-labelledby="{id}-title" onclick={(e) => { if (e.target === e.currentTarget) close(); }}>
+  <div class="modal" {id} {role} aria-modal="true" aria-labelledby="{id}-title" onmousedown={(e) => { downOnBackdrop = e.target === e.currentTarget; }}
+    onclick={(e) => { if (e.target === e.currentTarget && downOnBackdrop) close(); downOnBackdrop = false; }}>
     <div class="modal-card {size}">
       <div class="modal-head">
         <h2 id="{id}-title">{title}</h2>

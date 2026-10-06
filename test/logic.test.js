@@ -358,9 +358,26 @@ test('users + roles over HTTP: admin, user, accounts', async () => {
     r = await call(admin, 'POST', '/api/users', { username: 'x1', name: 'Short', role: 'user', password: 'short' });
     assert.match(r.json.error, /at least 10/);
 
-    const bob = await login('bob', 'bob-temp-password');
-    const helen = await login('helen', 'helen-temp-password');
+    // A temporary password only lets you load the app and change it; the server enforces this, not just the page.
+    const bobTemp = await login('bob', 'bob-temp-password');
+    assert.equal((await call(bobTemp, 'GET', '/api/log')).status, 403, 'temporary password blocks the API');
+    assert.equal((await call(bobTemp, 'POST', '/api/trips', {})).status, 403);
+    assert.equal((await call(bobTemp, 'GET', '/api/init')).status, 200);
+    const firstLogin = async (username, temp, next) => {
+      const t = await login(username, temp);
+      const c = await call(t, 'PUT', '/api/me/password', { current: temp, next });
+      assert.equal(c.status, 200, c.text);
+      return login(username, next);
+    };
+    const bob = await firstLogin('bob', 'bob-temp-password', 'bob-own-password-1');
+    const helen = await firstLogin('helen', 'helen-temp-password', 'helen-own-password-1');
     assert.ok(bob && helen);
+
+    // A username that isn't valid as an email address still gets a valid hidden placeholder email.
+    r = await call(admin, 'POST', '/api/users', { username: 'j.smith.', name: 'J Smith', role: 'user', password: 'jsmith-temp-pass-1' });
+    assert.equal(r.status, 200, r.text);
+    assert.equal(r.json.users.find((u) => u.username === 'j.smith.').email, '');
+    assert.match((await call(bob, 'PUT', '/api/me', { name: 'Bob Engineer', email: 'a..b@example.com' })).json.error, /not valid/);
 
     // Bob logs a trip (cached leg). Same trip as the admin is fine: duplicates are per user.
     const trip = { date: util.todayIso(), stops: ['Home', 'Acme Yard'], ratePence: 45, dataType: 'Live' };
@@ -373,7 +390,7 @@ test('users + roles over HTTP: admin, user, accounts', async () => {
     // Rates come only from Settings: a rate sent with the trip (Bob sent 45p) or with a profile is ignored.
     assert.ok(db.allLog().filter((x) => x.username === 'bob').every((x) => x.rate === 0.55), 'claimed at the company rate');
     r = await call(bob, 'PUT', '/api/me', { name: 'Bob Engineer', homePlaceId: home.id, ratePence: 150 });
-    assert.equal(r.json.me.ratePence, 55, 'no personal rate');
+    assert.equal(r.json.me.ratePence, undefined, 'no personal rate');
     assert.equal(r.json.me.ratePenceOwn, undefined);
     assert.equal(r.json.me.homePlace, undefined, 'no personal home place either');
 
@@ -396,12 +413,25 @@ test('users + roles over HTTP: admin, user, accounts', async () => {
     assert.equal(r.json.ratePence, 45, 'changing the company rate changes new journeys');
     assert.equal(r.json.totalClaim, 5.4);
     await call(admin, 'PUT', '/api/settings', { ratePence: 55 });
+    // A save is refused if the rate changed since the preview the person saw.
+    r = await call(bob, 'POST', '/api/trips', { ...trip, ticket: 'RATE', expectedRatePence: 45 });
+    assert.match(r.json.error, /rate changed to 55p/);
+    // The company rate: 1 to 200 pence, at most 2 decimal places.
+    assert.match((await call(admin, 'PUT', '/api/settings', { ratePence: 0.5 })).json.error, /between 1 and 200/);
+    assert.match((await call(admin, 'PUT', '/api/settings', { ratePence: 55.555 })).json.error, /2 decimal places/);
+    assert.equal((await call(admin, 'PUT', '/api/settings', { ratePence: 42.5 })).status, 200);
+    await call(admin, 'PUT', '/api/settings', { ratePence: 55 });
 
     // Visibility.
     const bobLog = (await call(bob, 'GET', '/api/log')).json.rows;
     assert.ok(bobLog.length >= 1 && bobLog.every((x) => x.username === 'bob'), 'user sees only own rows');
     const helenLog = (await call(helen, 'GET', '/api/log')).json.rows;
     assert.ok(helenLog.some((x) => x.username === 'bob') && helenLog.some((x) => x.username === 'admin'), 'accounts sees everyone');
+    // Customer totals follow the same rule: a user sees totals of their own journeys only.
+    const acmeId = db.listPlaces().find((p) => p.place === 'Acme Yard').customerId;
+    const legsSeen = async (who) => (await call(who, 'GET', '/api/customers')).json.customers.find((c) => c.id === acmeId).legs;
+    assert.equal(await legsSeen(bob), bobLog.filter((x) => x.customerId === acmeId && x.type === 'Live').length);
+    assert.ok(await legsSeen(admin) > await legsSeen(bob));
 
     // Accounts is read-only.
     assert.equal((await call(helen, 'POST', '/api/trips', trip)).status, 403);
@@ -429,18 +459,30 @@ test('users + roles over HTTP: admin, user, accounts', async () => {
     r = await call(bob, 'GET', `/api/export/summary?mode=month&month=${month}&userId=`); // tries "all users"
     assert.equal(r.json.scope, 'Bob Engineer', 'user cannot widen export scope');
     assert.ok(r.json.summary.byUser.every((u) => u.user === 'Bob Engineer'));
+    assert.match((await call(helen, 'GET', `/api/export/summary?mode=month&month=${month}&userId=abc`)).json.error, /Pick a user/);
+    assert.match((await call(helen, 'GET', `/api/export/summary?mode=month&month=${month}&userId=1&userId=2`)).json.error, /Pick a user/);
+    assert.match((await call(helen, 'GET', '/api/activity?userId=abc')).json.error, /Pick a user/);
+
+    // Two people with the same name get separate lines in the export, told apart by username.
+    await call(admin, 'POST', '/api/users', { username: 'bob2', name: 'Bob Engineer', role: 'user', password: 'bob2-temp-password' });
+    const bob2 = await firstLogin('bob2', 'bob2-temp-password', 'bob2-own-password-1');
+    assert.equal((await call(bob2, 'POST', '/api/trips', trip)).status, 200);
+    r = await call(helen, 'GET', `/api/export/summary?mode=month&month=${month}`);
+    const bobs = r.json.summary.byUser.filter((u) => /^Bob Engineer/.test(u.user)).map((u) => u.user).sort();
+    assert.deepEqual(bobs, ['Bob Engineer (bob)', 'Bob Engineer (bob2)']);
 
     // Password change signs out other sessions; the old temp password stops working.
-    r = await call(helen, 'PUT', '/api/me/password', { current: 'helen-temp-password', next: 'helen-new-password-1' });
+    r = await call(helen, 'PUT', '/api/me/password', { current: 'helen-own-password-1', next: 'helen-new-password-1' });
     assert.equal(r.status, 200, r.text);
     assert.equal((await call(helen, 'GET', '/api/log')).status, 401, 'old cookie revoked');
-    assert.equal(await login('helen', 'helen-temp-password'), null);
+    assert.equal(await login('helen', 'helen-own-password-1'), null);
     assert.ok(await login('helen', 'helen-new-password-1'));
 
     // Deactivating a user signs them out; admin can't lock themselves out.
     r = await call(admin, 'PUT', `/api/users/${bobId}`, { name: 'Bob Engineer', role: 'user', active: false });
     assert.equal(r.status, 200, r.text);
     assert.equal((await call(bob, 'GET', '/api/log')).status, 401);
+    assert.ok(users.get(bobId).lastLogin, 'last sign-in survives their sessions being removed');
     const me = (await call(admin, 'GET', '/api/init')).json.me;
     r = await call(admin, 'PUT', `/api/users/${me.id}`, { name: 'Admin', role: 'accounts', active: true });
     assert.match(r.json.error, /own administrator access/);
@@ -485,7 +527,7 @@ test('users + roles over HTTP: admin, user, accounts', async () => {
     // Accounts can read it; users can't; nobody can change it, not even directly in the database.
     assert.equal((await call(helen2, 'GET', '/api/activity')).status, 200);
     await call(admin, 'POST', '/api/users', { username: 'eve', name: 'Eve', role: 'user', password: 'eve-password-123' });
-    assert.equal((await call(await login('eve', 'eve-password-123'), 'GET', '/api/activity')).status, 403);
+    assert.equal((await call(await firstLogin('eve', 'eve-password-123', 'eve-own-password-1'), 'GET', '/api/activity')).status, 403);
     assert.throws(() => db.open().prepare('DELETE FROM audit_log').run(), /cannot be changed/);
     assert.throws(() => db.open().prepare("UPDATE audit_log SET summary = 'x'").run(), /cannot be changed/);
   } finally {
@@ -517,9 +559,11 @@ test('Better Auth: optional 2FA, backup codes, passkeys, admin reset, hardening'
     assert.equal(noHeader.status, 403);
 
     // New user, 2FA off by default -> password alone signs in.
-    let r = await call(admin, 'POST', '/api/users', { username: 'carol', name: 'Carol', role: 'user', password: 'carol-password-1', email: 'carol@example.com' });
+    let r = await call(admin, 'POST', '/api/users', { username: 'carol', name: 'Carol', role: 'user', password: 'carol-temp-pass-1', email: 'carol@example.com' });
     assert.equal(r.status, 200, JSON.stringify(r.json));
     const carolId = r.json.users.find((u) => u.username === 'carol').id;
+    r = await call(await signIn(base, 'carol', 'carol-temp-pass-1'), 'PUT', '/api/me/password', { current: 'carol-temp-pass-1', next: 'carol-password-1' });
+    assert.equal(r.status, 200, JSON.stringify(r.json));
     let carol = await signIn(base, 'carol', 'carol-password-1');
     assert.ok(carol, '2FA is not forced');
 
@@ -535,8 +579,12 @@ test('Better Auth: optional 2FA, backup codes, passkeys, admin reset, hardening'
     assert.equal(users.get(carolId).twoFactorEnabled, true);
 
     // Now sign-in needs a code: wrong code refused, right code works, backup code works once.
+    const audit = require('../lib/audit');
+    const mark = audit.list({}).rows[0].id;
     let s1 = await authPost(base, '/sign-in/username', { username: 'carol', password: 'carol-password-1' });
     assert.equal(s1.json.twoFactorRedirect, true);
+    assert.ok(!audit.list({ userId: carolId }).rows.some((a) => a.id > mark && a.action === 'auth.sign_in'),
+      'the password step alone is not logged as a sign-in');
     assert.equal((await call(s1.jar, 'GET', '/api/log')).status, 401, 'no session until the code is entered');
     assert.equal((await authPost(base, '/two-factor/verify-totp', { code: '000000' }, s1.jar)).status, 401);
     const ok = await authPost(base, '/two-factor/verify-totp', { code: totp(secret) }, s1.jar);
@@ -566,8 +614,11 @@ test('Better Auth: optional 2FA, backup codes, passkeys, admin reset, hardening'
     assert.ok(await signIn(base, 'carol', 'carol-password-1'));
     assert.equal(users.get(carolId).email, 'carol@example.com');
 
-    // Brute force: 5 failures from one IP -> locked out (even with the right password).
-    for (let i = 0; i < 5; i++) await authPost(base, '/sign-in/username', { username: 'carol', password: 'wrong-password-' + i });
+    // Brute force: 5 tries per IP, counted as they arrive, so 8 sent at once still only get 5. Then locked out
+    // (even with the right password).
+    const burst = await Promise.all(Array.from({ length: 8 },
+      (_, i) => authPost(base, '/sign-in/username', { username: 'carol', password: 'wrong-password-' + i })));
+    assert.equal(burst.filter((b) => b.status === 429).length, 3);
     const locked = await authPost(base, '/sign-in/username', { username: 'carol', password: 'carol-password-1' });
     assert.equal(locked.status, 429);
 
@@ -623,6 +674,21 @@ test('route map: route for an entry, cached by coordinates, same visibility as t
   }
 });
 
+test('db.tx: a failing COMMIT rethrows the real error and later transactions still nest', () => {
+  const d = db.open();
+  d.exec(`CREATE TABLE tx_parent (id INTEGER PRIMARY KEY);
+          CREATE TABLE tx_child (p INTEGER REFERENCES tx_parent(id) DEFERRABLE INITIALLY DEFERRED)`);
+  try {
+    // A deferred foreign key is only checked at COMMIT, so this makes COMMIT itself fail.
+    assert.throws(() => db.tx((x) => x.prepare('INSERT INTO tx_child(p) VALUES (999)').run()), /FOREIGN KEY/);
+    db.tx(() => db.tx((x) => x.prepare('INSERT INTO tx_parent(id) VALUES (1)').run()));
+    assert.equal(d.prepare('SELECT COUNT(*) n FROM tx_parent').get().n, 1);
+    assert.equal(d.prepare('SELECT COUNT(*) n FROM tx_child').get().n, 0);
+  } finally {
+    d.exec('DROP TABLE tx_child; DROP TABLE tx_parent');
+  }
+});
+
 test('scheduled backups: UK-time schedule maths, runs once per slot, keeps the last N, never prunes manual backups', async () => {
   const schedule = require('../lib/schedule');
   const at = (iso) => Date.parse(iso);
@@ -638,6 +704,7 @@ test('scheduled backups: UK-time schedule maths, runs once per slot, keeps the l
   assert.throws(() => schedule.parseSchedule({ frequency: 'fortnightly', start: '2026-10-06T02:00' }), /how often/);
   assert.throws(() => schedule.parseSchedule({ frequency: 'daily', start: '2026-02-30T02:00' }), /start date/);
   assert.throws(() => schedule.parseSchedule({ frequency: 'daily', start: '2026-10-06T02:00', keep: -1 }), /whole number/);
+  assert.equal(schedule.parseSchedule({ frequency: 'daily', start: '2026-10-06T02:00', keep: '' }).keep, 0, 'blank keeps every backup');
 
   // Saving a schedule never sets off a backup at once; each scheduled slot then backs up exactly once.
   const dir = process.env.BACKUP_DIR;

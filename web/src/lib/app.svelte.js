@@ -2,7 +2,6 @@
 import { api } from './api.js';
 import { norm } from './format.js';
 
-export const ROLE_LABELS = { admin: 'Administrator', user: 'User', accounts: 'Accounts' };
 
 export const app = $state({
   ready: false,
@@ -16,10 +15,8 @@ export const app = $state({
   google: { configured: true },
   mapsPicker: { configured: false },
   log: [],
-  logLoaded: false,
   logError: '',
   page: 'mileage',
-  logFilter: { year: null, month: '' }, // set by "Add journey" so a new entry is visible
   notice: null,           // { text, kind } shown at the top of every page (e.g. a new user's temporary password)
   mustChangePassword: false,
   startTwoFactor: false,  // set by "Set up now" in the two-factor suggestion; the Account page starts the flow
@@ -50,7 +47,6 @@ export async function loadLog() {
   try {
     const r = await api('GET', '/api/log');
     app.log = r.rows;
-    app.logLoaded = true;
     app.logError = '';
   } catch (e) {
     app.logError = e.message;
